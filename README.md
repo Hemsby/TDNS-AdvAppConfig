@@ -75,7 +75,23 @@ Copy `config.example.json` to `config.json` next to the executable and edit it:
 
 ## Getting a build
 
-Once a `v*` tag is pushed, `.github/workflows/release.yml` builds and publishes `TDNS-AdvAppConfig-{win-x64,linux-x64,linux-arm64}.zip` to [the repo's Releases page](https://github.com/Hemsby/TDNS-AdvAppConfig/releases) — grab the zip matching your platform from there.
+Every tagged release publishes `TDNS-AdvAppConfig-{win-x64,linux-x64,linux-arm64}.zip` to the [Releases page](https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest). Download the zip matching your platform and extract it — that's the whole app, self-contained, nothing else to install.
+
+From a terminal:
+
+```bash
+# Linux (x64) - swap linux-arm64 for ARM boards
+curl -LO https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest/download/TDNS-AdvAppConfig-linux-x64.zip
+unzip TDNS-AdvAppConfig-linux-x64.zip -d TDNS-AdvAppConfig
+```
+
+```powershell
+# Windows
+Invoke-WebRequest -Uri https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest/download/TDNS-AdvAppConfig-win-x64.zip -OutFile TDNS-AdvAppConfig-win-x64.zip
+Expand-Archive TDNS-AdvAppConfig-win-x64.zip -DestinationPath TDNS-AdvAppConfig
+```
+
+Or just click the asset link on the [latest release](https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest) in a browser.
 
 ## Deployment
 
