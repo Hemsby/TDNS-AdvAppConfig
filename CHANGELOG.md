@@ -6,6 +6,8 @@ All notable changes to this project are documented here, following [Keep a Chang
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-05
+
 ### Added
 - Dashboard tab: pause/resume for the whole Advanced Blocking app (root master switch) and per group, each with an optional duration — presets (5/15/30 min, 1 hour) or a custom minutes/hours picker — and a live "resumes in MM:SS" countdown with a "Resume Now" option. The timer lives server-side and survives a restart (crash or self-update), so a pending auto-resume is never silently lost.
 - Config tab: full form-based editor for the Advanced Blocking config document — general settings, local endpoint/network group maps (group selected from a dropdown, so a mapping can't reference a nonexistent group), group add/rename/delete, and a per-group editor covering every field (toggles, blocking addresses, allowed/blocked domains, allow list URLs, block list URLs with an "Advanced" per-URL override, and the regex/adblock-list equivalents).
