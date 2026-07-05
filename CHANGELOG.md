@@ -1,0 +1,18 @@
+# Changelog
+
+All notable changes to this project are documented here, following [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+**At release time:** rename `[Unreleased]` below to `[vX.Y.Z] - YYYY-MM-DD`, update `<Version>` in `src/TdnsAdvAppConfig/TdnsAdvAppConfig.csproj` to match, then start a fresh empty `[Unreleased]` section above it before tagging. The version number here, the csproj `<Version>`, and the `vX.Y.Z` git tag should always agree — the self-update feature compares this project's own version against GitHub release tags to decide whether an update is available.
+
+## [Unreleased]
+
+### Added
+- Dashboard tab: pause/resume for the whole Advanced Blocking app (root master switch) and per group, each with an optional duration — presets (5/15/30 min, 1 hour) or a custom minutes/hours picker — and a live "resumes in MM:SS" countdown with a "Resume Now" option. The timer lives server-side and survives a restart (crash or self-update), so a pending auto-resume is never silently lost.
+- Config tab: full form-based editor for the Advanced Blocking config document — general settings, local endpoint/network group maps (group selected from a dropdown, so a mapping can't reference a nonexistent group), group add/rename/delete, and a per-group editor covering every field (toggles, blocking addresses, allowed/blocked domains, allow list URLs, block list URLs with an "Advanced" per-URL override, and the regex/adblock-list equivalents).
+- Theme switcher (Auto/Light/Dark/Amber) matching the official Technitium console's own mechanism exactly.
+- Self-update via GitHub releases, applied in a deployment-aware way: in-place file swap + exit on Linux/systemd (relies on `Restart=always`), a helper-process file swap on Windows (works whether running as a plain process or an installed Windows Service), informational-only on Docker.
+- Windows Service support: install/uninstall scripts, full start/stop/restart via the standard service cmdlets, and a service-aware self-update restart path.
+- Shared-secret authentication (`adminSecret`) required for the addon's own API, with a login overlay in the UI.
+- Local schema validation of the config document before forwarding it to the DNS server, so a malformed submission is rejected locally instead of potentially breaking the Advanced Blocking app on the real server.
+- Deployment hardening: runs as a dedicated unprivileged user (not root) on Linux, with restrictive permissions on `config.json`.
+- Visual parity with the official Technitium console — vendored CSS, header, and tab styling.

@@ -1,0 +1,179 @@
+#authOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+#authOverlay.visible {
+    display: flex;
+}
+
+#authOverlay .panel {
+    width: 320px;
+    margin: 0;
+}
+
+#header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+}
+
+#header .title {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+}
+
+    #header .title img {
+        height: 22px;
+        width: 22px;
+    }
+
+#header .subtitle {
+    /* Absolutely positioned relative to #header itself, so it's centered on
+       the header's true midpoint regardless of how wide the title/menu are
+       (a flex/grid middle column only centers in the space *between* them,
+       which isn't the same point unless both sides happen to be equal width). */
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 45%;
+    color: #ffffff;
+    font-size: 14px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+#header .menu {
+    /* main.css floats .menu right, which flex items ignore anyway; this keeps
+       it correctly positioned even if main.css's float rule changes. */
+    float: none;
+    padding: 0;
+}
+
+.container {
+    /* main.css's #header uses height:32px + margin-bottom:-32px (a collapse trick),
+       so padding-top here must clear that 32px or content renders under the header. */
+    padding-top: 55px;
+    min-width: unset;
+    width: 90%;
+    max-width: 1000px;
+}
+
+@media (min-width: 992px) {
+    .container {
+        width: 90%;
+        max-width: 1000px;
+    }
+}
+
+.group-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.group-row .group-name {
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.group-row .group-actions {
+    white-space: nowrap;
+}
+
+.pause-duration {
+    display: inline-block;
+    width: auto;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.custom-duration-inputs {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.custom-duration-value {
+    display: inline-block;
+    width: 60px;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+.custom-duration-unit {
+    display: inline-block;
+    width: auto;
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+.countdown {
+    font-variant-numeric: tabular-nums;
+}
+
+#liUpdateStatus {
+    padding: 3px 20px;
+}
+
+#updateStatus {
+    color: #777777;
+    font-size: 12px;
+}
+
+.fa-spin-once {
+    animation: fa-spin 1s linear;
+}
+
+#mnuOptionsToggle {
+    cursor: pointer;
+}
+
+.dropdown-menu li a[data-theme].active {
+    font-weight: 600;
+}
+
+    .dropdown-menu li a[data-theme].active::before {
+        content: "\f00c ";
+        font-family: FontAwesome;
+        font-size: 11px;
+    }
+
+/* Technitium's own dark-mode.css / amber-mode.css don't style Bootstrap's
+   list-group component (the official console doesn't use it), so without
+   these overrides "Blocking Groups" rows stay white-on-dark-page. Colors
+   match the panel-body treatment those files already define, for consistency. */
+.dark-mode .list-group-item {
+    background-color: #252525;
+    border-color: #3a3a3c;
+    color: #dcdcdc;
+}
+
+.amber-mode .list-group-item {
+    background-color: #251a11;
+    border-color: #3d2a1c;
+    color: #ffb000;
+}
+
+#configGroupEditorView h4 {
+    margin-top: 24px;
+    margin-bottom: 8px;
+}
+
+#configGroupEditorView h4:first-of-type {
+    margin-top: 16px;
+}

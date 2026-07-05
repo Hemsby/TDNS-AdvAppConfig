@@ -1,0 +1,28 @@
+[Unit]
+Description=TDNS Advanced Blocking Config
+After=network.target technitium-dns-server.service
+
+[Service]
+Type=simple
+User=tdns-advappconfig
+Group=tdns-advappconfig
+WorkingDirectory=/opt/tdns-advappconfig
+ExecStart=/opt/tdns-advappconfig/TdnsAdvAppConfig
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tdns-advappconfig
+
+# Runs as a dedicated unprivileged user (not root) - it only needs network
+# access to Technitium's API and read/write access to its own install
+# directory (config.json, pause-timers.json, and its own binaries for
+# self-update), never filesystem access to anything else on the box.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/tdns-advappconfig
+
+[Install]
+WantedBy=multi-user.target

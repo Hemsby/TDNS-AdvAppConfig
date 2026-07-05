@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TdnsAdvAppConfig.Updater/TdnsAdvAppConfig.Updater.csproj" />
+  <Project Path="TdnsAdvAppConfig/TdnsAdvAppConfig.csproj" />
+</Solution>

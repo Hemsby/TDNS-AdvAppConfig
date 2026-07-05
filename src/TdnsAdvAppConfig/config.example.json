@@ -1,0 +1,8 @@
+{
+  "serverUrl": "http://127.0.0.1:5380",
+  "token": "paste-your-technitium-api-token-here",
+  "adminSecret": "choose-a-long-random-shared-secret",
+  "listenPort": 8099,
+  "gitHubRepo": "Hemsby/TDNS-AdvAppConfig",
+  "ignoreSslErrors": false
+}

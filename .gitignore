@@ -1,0 +1,7 @@
+bin/
+obj/
+*.user
+config.json
+pause-timers.json
+.vs/
+publish/

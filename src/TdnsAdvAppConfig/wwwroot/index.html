@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <title>Advanced Blocking Control</title>
+
+    <link rel="icon" href="favicon.ico" />
+
+    <link href="css/bootstrap.min.css" rel="stylesheet" />
+    <link href="css/font-awesome.min.css" rel="stylesheet" />
+    <link href="css/main.css" rel="stylesheet" />
+    <link href="css/dark-mode.css" rel="stylesheet" />
+    <link href="css/amber-mode.css" rel="stylesheet" />
+    <link href="css/app.css" rel="stylesheet" />
+
+    <script src="js/app.js" defer></script>
+    <script src="js/config.js" defer></script>
+</head>
+<body>
+    <script>
+        // Applied synchronously (before first paint) to avoid a flash of the wrong theme.
+        // Mirrors Technitium's own theme mechanism: a class on <body>, persisted in localStorage.
+        (function () {
+            var theme = localStorage.getItem("theme");
+            var cls;
+            switch (theme) {
+                case "light": cls = "light-mode"; break;
+                case "dark": cls = "dark-mode"; break;
+                case "amber": cls = "amber-mode"; break;
+                default:
+                    cls = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark-mode" : "light-mode";
+                    break;
+            }
+            document.body.className = cls;
+        })();
+    </script>
+
+    <div id="header">
+        <div class="title">
+            <img src="img/logo25x25.png" alt="Technitium Logo" />
+            <span class="text">Technitium</span>
+        </div>
+
+        <div class="subtitle">Advanced Blocking Companion</div>
+
+        <div id="mnuOptions" class="menu dropdown">
+            <a href="#" class="dropdown-toggle" id="mnuOptionsToggle" role="button" style="text-decoration: none;">
+                <span class="menu-title">
+                    <span id="versionLabel">TDNS-AdvAppConfig</span>
+                    <span class="caret"></span>
+                </span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-right">
+                <li><a href="#" id="btnCheckUpdate">Check for updates</a></li>
+                <li id="liUpdateStatus" style="display:none;"><span id="updateStatus"></span></li>
+                <li id="liApplyUpdate" style="display:none;"><a href="#" id="btnApplyUpdate">Update now</a></li>
+                <li role="separator" class="divider"></li>
+                <li class="dropdown-header">Theme</li>
+                <li><a href="#" data-theme="system">Auto</a></li>
+                <li><a href="#" data-theme="light">Light</a></li>
+                <li><a href="#" data-theme="dark">Dark</a></li>
+                <li><a href="#" data-theme="amber">Amber</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="content">
+        <div class="container">
+            <div class="AlertPlaceholder"></div>
+
+            <ul class="nav nav-tabs" role="tablist">
+                <li id="mainTabListDashboard" role="presentation" class="active"><a href="#mainTabPaneDashboard" data-tab="dashboard">Dashboard</a></li>
+                <li id="mainTabListConfig" role="presentation"><a href="#mainTabPaneConfig" data-tab="config">Config</a></li>
+            </ul>
+
+            <div class="tab-content">
+                <div id="mainTabPaneDashboard" class="tab-pane active" style="padding-top: 15px;">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Server Status</h3>
+                        </div>
+                        <div class="panel-body" id="statusPanel">
+                            <p>Loading&hellip;</p>
+                        </div>
+                    </div>
+
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title">Blocking Groups</h3>
+                        </div>
+                        <div class="list-group" id="groupsList">
+                            <div class="list-group-item">Loading&hellip;</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                    <div id="configRoot">
+                        <p>Loading&hellip;</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="footer">
+        <div class="content">
+            <a href="https://technitium.com/dns/" target="_blank" rel="noopener">Technitium DNS Server</a> Advanced Blocking companion
+        </div>
+    </div>
+
+    <div id="authOverlay">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">Enter Access Secret</h3>
+            </div>
+            <div class="panel-body">
+                <p class="text-muted" style="font-size:12px;">This addon is protected by a shared secret (set as <code>adminSecret</code> in its config.json).</p>
+                <input type="password" class="form-control" id="authSecretInput" placeholder="Secret" autocomplete="off" />
+                <div class="text-danger" id="authError" style="margin-top:8px; display:none;"></div>
+                <button class="btn btn-primary" id="authSubmitBtn" style="margin-top:12px; width:100%;">Unlock</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
