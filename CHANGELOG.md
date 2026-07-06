@@ -6,6 +6,11 @@ All notable changes to this project are documented here, following [Keep a Chang
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-06
+
+### Fixed
+- Self-update on Linux/systemd no longer fails with "Text file busy". `UpdateApplier.CopyDirectory` overwrote files in place, including this process's own running executable, which Linux refuses (ETXTBSY) for a file currently mapped as an executing program. It now copies to a temp file in the same directory and renames over the original, which the kernel allows even while the old inode is still executing. Windows and Docker were checked and are unaffected: Docker's apply path never touches files, and the Windows helper process already waits for the main process to exit before copying.
+
 ## [0.1.3] - 2026-07-06
 
 ### Fixed
