@@ -30,6 +30,11 @@ jobs:
         shell: pwsh
         run: Copy-Item deploy/windows/*.ps1 publish/${{ matrix.rid }}/
 
+      - name: Bundle systemd unit
+        if: matrix.rid == 'linux-x64' || matrix.rid == 'linux-arm64'
+        shell: pwsh
+        run: Copy-Item deploy/systemd/*.service publish/${{ matrix.rid }}/
+
       - name: Zip artifact
         shell: pwsh
         run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath TDNS-AdvAppConfig-${{ matrix.rid }}.zip

@@ -6,6 +6,12 @@ All notable changes to this project are documented here, following [Keep a Chang
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-06
+
+### Fixed
+- Release workflow now bundles the systemd unit (`deploy/systemd/tdns-advappconfig.service`) into the linux-x64/linux-arm64 release zips, matching how the Windows zip already bundles its service scripts. Previously the Linux deployment instructions referenced a file that only existed in a git checkout, not in the downloadable release.
+- README "Getting a build" / "Deployment" sections rewritten so each platform's instructions are self-contained (download, extract straight to the real final location, configure) instead of splitting the flow across two sections with an unstated working directory in between.
+
 ## [0.1.0] - 2026-07-05
 
 ### Added

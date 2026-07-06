@@ -75,23 +75,9 @@ Copy `config.example.json` to `config.json` next to the executable and edit it:
 
 ## Getting a build
 
-Every tagged release publishes `TDNS-AdvAppConfig-{win-x64,linux-x64,linux-arm64}.zip` to the [Releases page](https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest). Download the zip matching your platform and extract it — that's the whole app, self-contained, nothing else to install.
+Every tagged release publishes `TDNS-AdvAppConfig-{win-x64,linux-x64,linux-arm64}.zip` to the [Releases page](https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest) — that's the whole app for that platform, self-contained, nothing else to install. Each zip also bundles the platform-specific deployment helpers (the systemd unit in the Linux zips, the service install/uninstall scripts in the Windows zip), so a git checkout is never required for anything below.
 
-From a terminal:
-
-```bash
-# Linux (x64) - swap linux-arm64 for ARM boards
-curl -LO https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest/download/TDNS-AdvAppConfig-linux-x64.zip
-unzip TDNS-AdvAppConfig-linux-x64.zip -d TDNS-AdvAppConfig
-```
-
-```powershell
-# Windows
-Invoke-WebRequest -Uri https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest/download/TDNS-AdvAppConfig-win-x64.zip -OutFile TDNS-AdvAppConfig-win-x64.zip
-Expand-Archive TDNS-AdvAppConfig-win-x64.zip -DestinationPath TDNS-AdvAppConfig
-```
-
-Or just click the asset link on the [latest release](https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest) in a browser.
+The **Deployment** section for your platform shows exactly where to download and extract it, since the destination matters (e.g. `/opt/tdns-advappconfig` on Linux) — there's no separate generic download step.
 
 ## Deployment
 
@@ -99,16 +85,20 @@ Or just click the asset link on the [latest release](https://github.com/Hemsby/T
 
 ```bash
 useradd --system --no-create-home --shell /usr/sbin/nologin tdns-advappconfig
-
 mkdir -p /opt/tdns-advappconfig
-# extract the linux-x64 (or linux-arm64) release zip into /opt/tdns-advappconfig
-cp config.example.json /opt/tdns-advappconfig/config.json   # then edit it (see Configuration below)
+
+# swap linux-arm64 for ARM boards
+curl -LO https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest/download/TDNS-AdvAppConfig-linux-x64.zip
+unzip TDNS-AdvAppConfig-linux-x64.zip -d /opt/tdns-advappconfig
 chmod +x /opt/tdns-advappconfig/TdnsAdvAppConfig
 
-chown -R tdns-advappconfig:tdns-advappconfig /opt/tdns-advappconfig
-chmod 600 /opt/tdns-advappconfig/config.json
+cd /opt/tdns-advappconfig
+cp config.example.json config.json   # then edit it (see Configuration below)
 
-cp deploy/systemd/tdns-advappconfig.service /etc/systemd/system/
+chown -R tdns-advappconfig:tdns-advappconfig /opt/tdns-advappconfig
+chmod 600 config.json
+
+cp tdns-advappconfig.service /etc/systemd/system/   # bundled in the release zip
 systemctl daemon-reload
 systemctl enable --now tdns-advappconfig
 ```
@@ -119,7 +109,14 @@ systemctl enable --now tdns-advappconfig
 
 ### Windows
 
-Extract the `win-x64` release zip anywhere, then copy `config.example.json` to `config.json` in that same folder and edit it. `TdnsAdvAppConfig.Updater.exe` must stay in the same folder as `TdnsAdvAppConfig.exe` — it's the helper that swaps files during a self-update (Windows locks a running executable's file, so the main process can't overwrite itself; this tiny helper waits for it to exit, copies the new files in, and relaunches it).
+```powershell
+Invoke-WebRequest -Uri https://github.com/Hemsby/TDNS-AdvAppConfig/releases/latest/download/TDNS-AdvAppConfig-win-x64.zip -OutFile TDNS-AdvAppConfig-win-x64.zip
+Expand-Archive TDNS-AdvAppConfig-win-x64.zip -DestinationPath TDNS-AdvAppConfig
+cd TDNS-AdvAppConfig
+Copy-Item config.example.json config.json   # then edit it (see Configuration below)
+```
+
+Extract it anywhere you like — there's no fixed install path on Windows the way there is `/opt` on Linux. `TdnsAdvAppConfig.Updater.exe` must stay in the same folder as `TdnsAdvAppConfig.exe` — it's the helper that swaps files during a self-update (Windows locks a running executable's file, so the main process can't overwrite itself; this tiny helper waits for it to exit, copies the new files in, and relaunches it).
 
 **Installing as a Windows Service (recommended)** — from an **elevated** (Administrator) PowerShell prompt, in that same folder:
 
