@@ -13,6 +13,15 @@ public sealed class UpdateApplier
     // standalone process while Windows still shows the service as Stopped.
     public const string WindowsServiceName = "TdnsAdvAppConfig";
 
+    // The project's fixed AssemblyName (no override in the csproj, so it's just the project
+    // file name) - i.e. what the Linux build's main executable is always actually called.
+    // Deriving this from Environment.ProcessPath instead would be wrong: that's the *calling*
+    // process's own path, which only coincidentally matches this when the code runs inside
+    // the real deployed app - it silently breaks under any other host (tests, a renamed
+    // binary, etc.), since a filename mismatch here fails open (skips the permission fix)
+    // rather than erroring.
+    private const string LinuxExeName = "TdnsAdvAppConfig";
+
 
     public async Task<(bool success, string status, string? message)> ApplyAsync(string downloadUrl, string installDir, CancellationToken ct)
     {
@@ -40,11 +49,34 @@ public sealed class UpdateApplier
             switch (kind)
             {
                 case DeploymentKind.Systemd:
-                    // Linux allows replacing a running executable's file on disk; the running
-                    // process keeps its old inode open until it exits, so no helper is needed.
-                    CopyDirectory(extractDir, installDir);
-                    ScheduleSelfExit();
-                    return (true, "restarting", "Update staged. Restarting now (systemd Restart=always will bring it back up).");
+                    {
+                        // ZipFile.ExtractToDirectory doesn't restore Unix permissions from the
+                        // zip - the extracted binary comes out as a plain non-executable file
+                        // regardless of what the release zip itself stores. Without this,
+                        // systemd fails to exec it (status=203/EXEC) after the restart below.
+                        string extractedExe = Path.Combine(extractDir, LinuxExeName);
+                        if (!File.Exists(extractedExe))
+                        {
+                            // Fail loudly rather than silently deploying a build that's missing
+                            // its own entry point - a name mismatch here must not fall through
+                            // to CopyDirectory and leave the install non-executable.
+                            return (false, "error", $"Downloaded release is missing the expected executable ({LinuxExeName}).");
+                        }
+
+                        if (OperatingSystem.IsLinux())
+                        {
+                            File.SetUnixFileMode(extractedExe,
+                                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                        }
+
+                        // Linux allows replacing a running executable's file on disk; the running
+                        // process keeps its old inode open until it exits, so no helper is needed.
+                        CopyDirectory(extractDir, installDir);
+                        ScheduleSelfExit();
+                        return (true, "restarting", "Update staged. Restarting now (systemd Restart=always will bring it back up).");
+                    }
 
                 case DeploymentKind.Windows:
                     {
@@ -121,6 +153,15 @@ public sealed class UpdateApplier
             // inode is still mapped and executing.
             string tempFile = destFile + ".update-tmp";
             File.Copy(file, tempFile, overwrite: true);
+
+            // File.Copy creates tempFile as a brand-new inode rather than reusing destFile's,
+            // so it does NOT inherit destFile's permissions - it gets the umask default
+            // instead. Without this, the executable bit is silently stripped from the main
+            // binary (and everything else), and systemd fails to exec it after the restart.
+            // (CopyDirectory only ever runs for the Systemd deployment path, hence Linux-only.)
+            if (OperatingSystem.IsLinux())
+                File.SetUnixFileMode(tempFile, File.GetUnixFileMode(file));
+
             File.Move(tempFile, destFile, overwrite: true);
         }
     }

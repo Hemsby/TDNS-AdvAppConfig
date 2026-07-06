@@ -6,19 +6,14 @@ All notable changes to this project are documented here, following [Keep a Chang
 
 ## [Unreleased]
 
-## [0.1.5] - 2026-07-06
-
-Release update testing - no functional changes.
-
-## [0.1.4] - 2026-07-06
+## [0.1.6] - 2026-07-06
 
 ### Fixed
-- Self-update on Linux/systemd no longer fails with "Text file busy". `UpdateApplier.CopyDirectory` overwrote files in place, including this process's own running executable, which Linux refuses (ETXTBSY) for a file currently mapped as an executing program. It now copies to a temp file in the same directory and renames over the original, which the kernel allows even while the old inode is still executing. Windows and Docker were checked and are unaffected: Docker's apply path never touches files, and the Windows helper process already waits for the main process to exit before copying.
-
-## [0.1.3] - 2026-07-06
-
-### Fixed
-- Self-update ("Update now") no longer fails with an opaque "Unexpected end of JSON input" when something goes wrong applying the update (unreachable GitHub, disk full, a locked file, etc.). `UpdateApplier.ApplyAsync` had no error handling around its download/extract/copy steps, so a failure there was an unhandled exception; with no exception-handling middleware configured, that produced a bare empty 500 response, which the client's JSON parsing choked on instead of showing the real cause. It now returns a proper error message like `UpdateManager.CheckAsync` already did.
+- Self-update on Linux/systemd, made reliable end to end:
+  - A failure applying an update (unreachable GitHub, disk full, a locked file, etc.) no longer surfaces as an opaque "Unexpected end of JSON input" - `UpdateApplier.ApplyAsync` had no error handling around its download/extract/copy steps, so a failure there was an unhandled exception, and with no exception-handling middleware configured that produced a bare empty response. It now returns a proper error message.
+  - Overwriting the running executable in place no longer fails with "Text file busy" (Linux refuses to open a currently-executing file for writing). It now copies to a temp file and renames over the original, which the kernel allows even while the old inode is still executing.
+  - The extracted executable no longer loses its permission bit during extraction. `ZipFile.ExtractToDirectory` doesn't restore Unix permissions from the zip, so without an explicit fix the executable came back non-executable and systemd failed to exec it (`status=203/EXEC`) after restarting.
+  - Windows and Docker were checked and are unaffected by any of the above: Docker's apply path never touches files, and the Windows helper process already waits for the main process to exit before copying.
 
 ## [0.1.2] - 2026-07-06
 
