@@ -6,6 +6,11 @@ All notable changes to this project are documented here, following [Keep a Chang
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-06
+
+### Fixed
+- Self-update ("Update now") no longer fails with an opaque "Unexpected end of JSON input" when something goes wrong applying the update (unreachable GitHub, disk full, a locked file, etc.). `UpdateApplier.ApplyAsync` had no error handling around its download/extract/copy steps, so a failure there was an unhandled exception; with no exception-handling middleware configured, that produced a bare empty 500 response, which the client's JSON parsing choked on instead of showing the real cause. It now returns a proper error message like `UpdateManager.CheckAsync` already did.
+
 ## [0.1.2] - 2026-07-06
 
 ### Fixed
