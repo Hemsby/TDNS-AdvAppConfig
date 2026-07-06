@@ -110,6 +110,18 @@ public sealed class UpdateApplier
             Directory.CreateDirectory(dir.Replace(sourceDir, destDir));
 
         foreach (string file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
-            File.Copy(file, file.Replace(sourceDir, destDir), overwrite: true);
+        {
+            string destFile = file.Replace(sourceDir, destDir);
+
+            // Overwriting destFile directly fails with "Text file busy" on Linux when it's
+            // this process's own running executable (open-for-write conflicts with the
+            // kernel's deny-write lock on a currently-executing file). Copying to a temp file
+            // in the same directory and renaming over it doesn't have that problem: rename()
+            // just swaps the directory entry, which the kernel allows even while the old
+            // inode is still mapped and executing.
+            string tempFile = destFile + ".update-tmp";
+            File.Copy(file, tempFile, overwrite: true);
+            File.Move(tempFile, destFile, overwrite: true);
+        }
     }
 }
