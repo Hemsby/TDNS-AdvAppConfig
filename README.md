@@ -6,6 +6,8 @@ The official web console only exposes Advanced Blocking's config as a raw JSON t
 
 See [CHANGELOG.md](CHANGELOG.md) for what's changed in each release.
 
+**If you deployed any version before v1.0.0, please remove it and deploy v1.0.0 fresh.** Everything prior was early, same-day iteration while real bugs were still being found and fixed - including in the self-update mechanism itself. An old build can't be trusted to reliably self-update out of that state. Apologies to anyone who ran into that; v1.0.0 is the first release meant for general use.
+
 ## Screenshots
 
 | Dashboard (light) | Dashboard (dark) |

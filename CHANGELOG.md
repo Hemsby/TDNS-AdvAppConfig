@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-07-06
+
+### Changed
+
+- First stable release. No functional changes since 0.1.7 - this marks the mobile-responsiveness and self-update fixes as stable and ready for general use.
+
 ## [0.1.6] - 2026-07-06
 
 ### Fixed
