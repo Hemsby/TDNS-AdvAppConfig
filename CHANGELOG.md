@@ -6,10 +6,6 @@ All notable changes to this project are documented here, following [Keep a Chang
 
 ## [Unreleased]
 
-## [0.1.7] - 2026-07-06
-
-Release update testing - no functional changes.
-
 ## [0.1.6] - 2026-07-06
 
 ### Fixed
