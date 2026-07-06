@@ -6,6 +6,11 @@ All notable changes to this project are documented here, following [Keep a Chang
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-06
+
+### Fixed
+- UI is now responsive on mobile and narrow windows. `main.css` (vendored from Technitium's own console) floors `#header`/`#footer` at a 970px min-width, which forced horizontal scrolling on any narrower viewport; the container, header, panels, tables, and group/URL-entry rows now reflow at tablet and phone widths instead.
+
 ## [0.1.1] - 2026-07-06
 
 ### Fixed
