@@ -22,59 +22,76 @@ public sealed class UpdateApplier
             return (false, "docker", "Docker deployments update via: docker compose pull && docker compose up -d (run on the host).");
 
         string stagingDir = Path.Combine(Path.GetTempPath(), "tdns-advappconfig-update-" + Guid.NewGuid());
-        Directory.CreateDirectory(stagingDir);
 
-        string zipPath = Path.Combine(stagingDir, "update.zip");
-        using (HttpClient http = new HttpClient())
+        try
         {
-            byte[] data = await http.GetByteArrayAsync(downloadUrl, ct);
-            await File.WriteAllBytesAsync(zipPath, data, ct);
-        }
+            Directory.CreateDirectory(stagingDir);
 
-        string extractDir = Path.Combine(stagingDir, "extracted");
-        ZipFile.ExtractToDirectory(zipPath, extractDir);
+            string zipPath = Path.Combine(stagingDir, "update.zip");
+            using (HttpClient http = new HttpClient())
+            {
+                byte[] data = await http.GetByteArrayAsync(downloadUrl, ct);
+                await File.WriteAllBytesAsync(zipPath, data, ct);
+            }
 
-        switch (kind)
-        {
-            case DeploymentKind.Systemd:
-                // Linux allows replacing a running executable's file on disk; the running
-                // process keeps its old inode open until it exits, so no helper is needed.
-                CopyDirectory(extractDir, installDir);
-                ScheduleSelfExit();
-                return (true, "restarting", "Update staged. Restarting now (systemd Restart=always will bring it back up).");
+            string extractDir = Path.Combine(stagingDir, "extracted");
+            ZipFile.ExtractToDirectory(zipPath, extractDir);
 
-            case DeploymentKind.Windows:
-                {
-                    string updaterExe = Path.Combine(AppContext.BaseDirectory, "TdnsAdvAppConfig.Updater.exe");
-                    if (!File.Exists(updaterExe))
-                        return (false, "error", "Updater helper (TdnsAdvAppConfig.Updater.exe) was not found next to the main executable.");
+            switch (kind)
+            {
+                case DeploymentKind.Systemd:
+                    // Linux allows replacing a running executable's file on disk; the running
+                    // process keeps its old inode open until it exits, so no helper is needed.
+                    CopyDirectory(extractDir, installDir);
+                    ScheduleSelfExit();
+                    return (true, "restarting", "Update staged. Restarting now (systemd Restart=always will bring it back up).");
 
-                    int pid = Environment.ProcessId;
-                    string exeName = Path.GetFileName(Environment.ProcessPath) ?? "TdnsAdvAppConfig.exe";
-
-                    ProcessStartInfo psi = new ProcessStartInfo(updaterExe)
+                case DeploymentKind.Windows:
                     {
-                        UseShellExecute = false,
-                        WorkingDirectory = AppContext.BaseDirectory
-                    };
-                    psi.ArgumentList.Add(pid.ToString());
-                    psi.ArgumentList.Add(extractDir);
-                    psi.ArgumentList.Add(installDir);
-                    psi.ArgumentList.Add(exeName);
+                        string updaterExe = Path.Combine(AppContext.BaseDirectory, "TdnsAdvAppConfig.Updater.exe");
+                        if (!File.Exists(updaterExe))
+                            return (false, "error", "Updater helper (TdnsAdvAppConfig.Updater.exe) was not found next to the main executable.");
 
-                    if (WindowsServiceHelpers.IsWindowsService())
-                    {
-                        psi.ArgumentList.Add("--service");
-                        psi.ArgumentList.Add(WindowsServiceName);
+                        int pid = Environment.ProcessId;
+                        string exeName = Path.GetFileName(Environment.ProcessPath) ?? "TdnsAdvAppConfig.exe";
+
+                        ProcessStartInfo psi = new ProcessStartInfo(updaterExe)
+                        {
+                            UseShellExecute = false,
+                            WorkingDirectory = AppContext.BaseDirectory
+                        };
+                        psi.ArgumentList.Add(pid.ToString());
+                        psi.ArgumentList.Add(extractDir);
+                        psi.ArgumentList.Add(installDir);
+                        psi.ArgumentList.Add(exeName);
+
+                        if (WindowsServiceHelpers.IsWindowsService())
+                        {
+                            psi.ArgumentList.Add("--service");
+                            psi.ArgumentList.Add(WindowsServiceName);
+                        }
+
+                        Process.Start(psi);
+                        ScheduleSelfExit();
+                        return (true, "restarting", "Update staged. Restarting now via helper process.");
                     }
 
-                    Process.Start(psi);
-                    ScheduleSelfExit();
-                    return (true, "restarting", "Update staged. Restarting now via helper process.");
-                }
-
-            default:
-                return (false, "error", "Unknown deployment type.");
+                default:
+                    return (false, "error", "Unknown deployment type.");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Without this, a failure here (can't reach GitHub, disk full, a file locked by
+            // antivirus, etc.) is an unhandled exception. Program.cs has no exception-handling
+            // middleware, so ASP.NET Core's default response for that is a bare 500 with an
+            // empty body - the client's res.json() then fails with "Unexpected end of JSON
+            // input", hiding whatever actually went wrong.
+            // stagingDir (including extractDir) must survive a success return - the Windows
+            // path hands extractDir to a separately-launched helper process that reads it
+            // after this method returns - so cleanup only happens here, not in a finally.
+            try { Directory.Delete(stagingDir, recursive: true); } catch { /* best effort */ }
+            return (false, "error", ex.Message);
         }
     }
 
