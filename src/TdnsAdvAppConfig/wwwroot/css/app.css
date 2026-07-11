@@ -1,4 +1,4 @@
-#authOverlay {
+.modal-overlay {
     display: none;
     position: fixed;
     inset: 0;
@@ -8,13 +8,17 @@
     justify-content: center;
 }
 
-#authOverlay.visible {
+.modal-overlay.visible {
     display: flex;
 }
 
-#authOverlay .panel {
+.modal-overlay .panel {
     width: 320px;
     margin: 0;
+}
+
+#uiDialogOverlay .panel {
+    width: 400px;
 }
 
 #header {
@@ -194,7 +198,7 @@
     max-width: 800px;
 }
 
-#authOverlay .panel {
+.modal-overlay .panel {
     max-width: calc(100vw - 32px);
 }
 

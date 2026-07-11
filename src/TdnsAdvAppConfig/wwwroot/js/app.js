@@ -381,11 +381,11 @@ window.apiFetch = (function () {
         let durationMinutes = null;
 
         if (!enabled) {
-            if (!confirm("Pause blocking for ALL groups? This overrides every group's individual setting.")) return;
+            if (!(await uiConfirm("Pause blocking for ALL groups? This overrides every group's individual setting."))) return;
 
             durationMinutes = readDurationMinutes(document.getElementById("rootActions"));
             if (durationMinutes === undefined) {
-                alert("Enter a valid custom duration.");
+                await uiAlert("Enter a valid custom duration.");
                 return;
             }
         }
@@ -401,14 +401,14 @@ window.apiFetch = (function () {
             const data = await res.json();
 
             if (!data.success) {
-                alert("Failed to update master switch: " + (data.error || "unknown error"));
+                await uiAlert("Failed to update master switch: " + (data.error || "unknown error"));
                 btn.disabled = false;
                 return;
             }
 
             renderStatus({ connected: true, rootEnableBlocking: data.rootEnableBlocking, rootResumeAt: data.rootResumeAt, groups: data.groups });
         } catch (err) {
-            alert("Failed to update master switch: " + err.message);
+            await uiAlert("Failed to update master switch: " + err.message);
             btn.disabled = false;
         }
     }
@@ -424,7 +424,7 @@ window.apiFetch = (function () {
             const row = btn.closest(".list-group-item");
             durationMinutes = row ? readDurationMinutes(row) : null;
             if (durationMinutes === undefined) {
-                alert("Enter a valid custom duration.");
+                await uiAlert("Enter a valid custom duration.");
                 return;
             }
         }
@@ -440,14 +440,14 @@ window.apiFetch = (function () {
             const data = await res.json();
 
             if (!data.success) {
-                alert("Failed to update group: " + (data.error || "unknown error"));
+                await uiAlert("Failed to update group: " + (data.error || "unknown error"));
                 btn.disabled = false;
                 return;
             }
 
             renderStatus({ connected: true, rootEnableBlocking: data.rootEnableBlocking, rootResumeAt: data.rootResumeAt, groups: data.groups });
         } catch (err) {
-            alert("Failed to update group: " + err.message);
+            await uiAlert("Failed to update group: " + err.message);
             btn.disabled = false;
         }
     }
@@ -489,7 +489,7 @@ window.apiFetch = (function () {
     }
 
     async function applyUpdate() {
-        if (!confirm("Apply the update now? The addon will restart automatically.")) return;
+        if (!(await uiConfirm("Apply the update now? The addon will restart automatically."))) return;
 
         liApplyUpdate.style.display = "none";
         updateStatus.textContent = "Updating…";

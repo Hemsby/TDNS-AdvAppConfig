@@ -108,18 +108,18 @@
             const data = await res.json();
 
             if (!data.success) {
-                alert("Failed to save config: " + (data.error || "unknown error"));
+                await uiAlert("Failed to save config: " + (data.error || "unknown error"));
                 return;
             }
 
             clearDirty();
         } catch (err) {
-            alert("Failed to save config: " + err.message);
+            await uiAlert("Failed to save config: " + err.message);
         }
     }
 
-    function discard() {
-        if (dirty && !confirm("Discard unsaved changes?")) return;
+    async function discard() {
+        if (dirty && !(await uiConfirm("Discard unsaved changes?"))) return;
         load();
     }
 
@@ -281,14 +281,14 @@
         });
     }
 
-    function addNamedNetwork() {
-        let name = prompt("Named network name (letters, numbers, hyphens):");
+    async function addNamedNetwork() {
+        let name = await uiPrompt("Named network name (letters, numbers, hyphens):");
         if (!name) return;
         name = name.trim();
         if (!name) return;
 
         if (Object.prototype.hasOwnProperty.call(config.networks, name)) {
-            alert(`A named network called "${name}" already exists.`);
+            await uiAlert(`A named network called "${name}" already exists.`);
             return;
         }
 
@@ -342,7 +342,7 @@
         });
 
         container.querySelectorAll(".map-key").forEach((inp) => {
-            inp.addEventListener("blur", () => {
+            inp.addEventListener("blur", async () => {
                 const oldKey = inp.getAttribute("data-orig-key");
                 const newKey = inp.value.trim();
 
@@ -354,7 +354,7 @@
                 }
 
                 if (Object.prototype.hasOwnProperty.call(mapObj, newKey)) {
-                    alert(`A mapping for "${newKey}" already exists.`);
+                    await uiAlert(`A mapping for "${newKey}" already exists.`);
                     inp.value = oldKey;
                     return;
                 }
@@ -375,16 +375,16 @@
         renderGroupMapTable("shNetworkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24");
     }
 
-    function addDomainMapping() {
-        if (groupNames().length === 0) { alert("Create a translation group first."); return; }
+    async function addDomainMapping() {
+        if (groupNames().length === 0) { await uiAlert("Create a translation group first."); return; }
 
-        let key = prompt("Domain name (e.g. example.com):");
+        let key = await uiPrompt("Domain name (e.g. example.com):");
         if (!key) return;
         key = key.trim();
         if (!key) return;
 
         if (Object.prototype.hasOwnProperty.call(config.domainGroupMap, key)) {
-            alert("That domain is already mapped.");
+            await uiAlert("That domain is already mapped.");
             return;
         }
 
@@ -393,16 +393,16 @@
         renderDomainMap();
     }
 
-    function addNetworkMapping() {
-        if (groupNames().length === 0) { alert("Create a translation group first."); return; }
+    async function addNetworkMapping() {
+        if (groupNames().length === 0) { await uiAlert("Create a translation group first."); return; }
 
-        let key = prompt("Network or IP address (e.g. 192.168.1.0/24, 10.0.0.0/8):");
+        let key = await uiPrompt("Network or IP address (e.g. 192.168.1.0/24, 10.0.0.0/8):");
         if (!key) return;
         key = key.trim();
         if (!key) return;
 
         if (Object.prototype.hasOwnProperty.call(config.networkGroupMap, key)) {
-            alert("That network is already mapped.");
+            await uiAlert("That network is already mapped.");
             return;
         }
 
@@ -489,7 +489,7 @@
         });
 
         container.querySelectorAll(".translation-key").forEach((inp) => {
-            inp.addEventListener("blur", () => {
+            inp.addEventListener("blur", async () => {
                 const oldKey = inp.getAttribute("data-orig-key");
                 const newKey = inp.value.trim();
 
@@ -501,7 +501,7 @@
                 }
 
                 if (Object.prototype.hasOwnProperty.call(mapObj, newKey)) {
-                    alert(`A translation for "${newKey}" already exists.`);
+                    await uiAlert(`A translation for "${newKey}" already exists.`);
                     inp.value = oldKey;
                     return;
                 }
@@ -513,14 +513,14 @@
             });
         });
 
-        container.querySelector(".translation-add").addEventListener("click", () => {
-            let key = prompt("External IP or CIDR (e.g. 1.2.3.0/24):");
+        container.querySelector(".translation-add").addEventListener("click", async () => {
+            let key = await uiPrompt("External IP or CIDR (e.g. 1.2.3.0/24):");
             if (!key) return;
             key = key.trim();
             if (!key) return;
 
             if (Object.prototype.hasOwnProperty.call(mapObj, key)) {
-                alert("That external network is already mapped.");
+                await uiAlert("That external network is already mapped.");
                 return;
             }
 
@@ -559,11 +559,11 @@
         });
 
         container.querySelectorAll(".group-delete").forEach((btn) => {
-            btn.addEventListener("click", () => {
+            btn.addEventListener("click", async () => {
                 const idx = parseInt(btn.getAttribute("data-index"), 10);
                 const g = config.groups[idx];
 
-                if (!confirm(`Delete group "${g.name}"? Any domain/network mappings pointing to it will be left dangling.`)) return;
+                if (!(await uiConfirm(`Delete group "${g.name}"? Any domain/network mappings pointing to it will be left dangling.`))) return;
 
                 config.groups.splice(idx, 1);
                 markDirty();
@@ -574,14 +574,14 @@
         });
     }
 
-    function addGroup() {
-        let name = prompt("New translation group name:");
+    async function addGroup() {
+        let name = await uiPrompt("New translation group name:");
         if (!name) return;
         name = name.trim();
         if (!name) return;
 
         if (config.groups.some((g) => g.name === name)) {
-            alert("A group with that name already exists.");
+            await uiAlert("A group with that name already exists.");
             return;
         }
 
@@ -651,13 +651,13 @@
 
         const nameInput = document.getElementById("shGrpName");
         nameInput.value = g.name;
-        nameInput.addEventListener("blur", () => {
+        nameInput.addEventListener("blur", async () => {
             const newName = nameInput.value.trim();
             if (!newName) { nameInput.value = g.name; return; }
             if (newName === g.name) return;
 
             if (config.groups.some((gr, idx) => idx !== currentGroupIndex && gr.name === newName)) {
-                alert("A group with that name already exists.");
+                await uiAlert("A group with that name already exists.");
                 nameInput.value = g.name;
                 return;
             }
