@@ -866,24 +866,52 @@
                             <div class="col-sm-9"><input type="text" class="form-control" id="shRecDomain" placeholder="e.g. vpn.example.com" /></div>
                         </div>
                         <div class="form-group">
-                            <label class="col-sm-3 control-label">Record Type</label>
+                            <label class="col-sm-3 control-label">Answer With</label>
                             <div class="col-sm-9">
                                 <select class="form-control" id="shRecClassPath">
-                                    <option value="SplitHorizon.SimpleAddress" ${editBuffer.classPath === "SplitHorizon.SimpleAddress" ? "selected" : ""}>Address (A/AAAA)</option>
-                                    <option value="SplitHorizon.SimpleCNAME" ${editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "selected" : ""}>CNAME</option>
+                                    <option value="SplitHorizon.SimpleAddress" ${editBuffer.classPath === "SplitHorizon.SimpleAddress" ? "selected" : ""}>An IP address</option>
+                                    <option value="SplitHorizon.SimpleCNAME" ${editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "selected" : ""}>Another domain name (redirect)</option>
                                 </select>
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="col-sm-3 control-label">TTL (seconds)</label>
-                            <div class="col-sm-9"><input type="number" class="form-control" id="shRecTtl" min="0" /></div>
+                            <label class="col-sm-3 control-label">Cache Time</label>
+                            <div class="col-sm-9">
+                                <input type="number" class="form-control" id="shRecTtl" min="0" />
+                                <p class="text-muted" style="font-size:12px; margin: 4px 0 0;">How long, in seconds, other DNS servers remember this answer before checking again. 300 (5 minutes) is fine if unsure.</p>
+                            </div>
                         </div>
                     </div>
 
-                    <h4>Network &rarr; Response Mapping</h4>
-                    <p class="text-muted">Network key can be a CIDR (e.g. 10.0.0.0/8), a named network from App Config, or the keyword &quot;public&quot;/&quot;private&quot;.</p>
+                    <h4>Who Gets Which Answer</h4>
+                    <p class="text-muted">Add one rule per group of people. For example: your home network gets the internal address, everyone else gets the public one.</p>
                     <div id="shRecDataContainer"></div>
-                    <button id="btnShRecAddEntry" class="btn btn-default btn-xs"><span class="fa fa-plus"></span> Add Network Entry</button>
+
+                    <div id="shRecAddEntryForm" class="well well-sm" style="display:none; margin-top:8px;">
+                        <div class="form-group" style="margin-bottom:8px;">
+                            <label>Who is this rule for?</label>
+                            <select class="form-control input-sm" id="shRecEntryType">
+                                <option value="private">People on my home/local network</option>
+                                <option value="public">People on the internet</option>
+                                <option value="named" id="shRecEntryNamedOption" style="display:none;">A specific network from App Config</option>
+                                <option value="device">One specific device (by its IP address)</option>
+                                <option value="advanced">A specific address range (advanced)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="shRecEntryNamedGroup" style="display:none; margin-bottom:8px;">
+                            <select class="form-control input-sm" id="shRecEntryNamedSelect"></select>
+                        </div>
+                        <div class="form-group" id="shRecEntryDeviceGroup" style="display:none; margin-bottom:8px;">
+                            <input type="text" class="form-control input-sm" id="shRecEntryDeviceInput" placeholder="e.g. 192.168.1.50" />
+                        </div>
+                        <div class="form-group" id="shRecEntryAdvancedGroup" style="display:none; margin-bottom:8px;">
+                            <input type="text" class="form-control input-sm" id="shRecEntryAdvancedInput" placeholder="e.g. 192.168.1.0/24" />
+                            <p class="text-muted" style="font-size:12px; margin-top:4px;">A network address followed by a slash and a number (CIDR notation). Only use this if you know what that means - otherwise pick one of the other options above.</p>
+                        </div>
+                        <button class="btn btn-primary btn-xs" id="btnShRecEntryConfirm">Add This Rule</button>
+                        <button class="btn btn-default btn-xs" id="btnShRecEntryCancel">Cancel</button>
+                    </div>
+                    <button id="btnShRecAddEntry" class="btn btn-default btn-xs"><span class="fa fa-plus"></span> Add a Rule</button>
 
                     <div style="margin-top:16px;">
                         <button id="btnShRecSave" class="btn btn-primary btn-sm">Save Record</button>
@@ -922,9 +950,9 @@
         ttlInput.value = editBuffer.ttl;
         ttlInput.addEventListener("input", (e) => { editBuffer.ttl = parseInt(e.target.value, 10) || 0; });
 
-        document.getElementById("btnShRecAddEntry").addEventListener("click", addRecordDataEntry);
         document.getElementById("btnShRecSave").addEventListener("click", saveRecord);
 
+        initAddEntryForm();
         renderRecordDataEditor();
     }
 
@@ -935,38 +963,112 @@
             renderRecordAddressData();
     }
 
-    async function addRecordDataEntry() {
-        let key = await uiPrompt('Network key (CIDR, named network, or "public"/"private"):');
-        if (!key) return;
-        key = key.trim();
-        if (!key) return;
+    // "Network key" (a raw CIDR like 10.0.0.0/24, or the keywords "public"/
+    // "private") is exactly the jargon this tool exists to hide. The picker
+    // below only asks for a CIDR when someone explicitly chooses "advanced" -
+    // every other path (local/internet/named network/single device) needs no
+    // networking knowledge at all.
 
-        if (Object.prototype.hasOwnProperty.call(editBuffer.data, key)) {
-            await uiAlert(`An entry for "${key}" already exists.`);
+    let namedNetworkNames = []; // cached App Config named networks, refreshed each time the record editor opens
+
+    // Reads App Config's named networks independently of the App Config tab's
+    // own load state - the record editor may be opened before that tab has
+    // ever been visited, so `config` (the App Config module's own variable)
+    // can't be relied on here.
+    async function fetchNamedNetworkNames() {
+        if (config && config.networks) return Object.keys(config.networks);
+
+        try {
+            const res = await apiFetch("/api/splithorizon/config/raw");
+            const data = await res.json();
+            if (data.success && data.config && data.config.networks && typeof data.config.networks === "object")
+                return Object.keys(data.config.networks);
+        } catch {
+            // App Config may be unreachable/unconfigured - the picker still
+            // works fine with just local/internet/device/advanced.
+        }
+
+        return [];
+    }
+
+    function networkKeyLabel(key) {
+        if (key === "private") return "People on my home/local network";
+        if (key === "public") return "People on the internet";
+        if (namedNetworkNames.includes(key)) return `People on "${key}" (from App Config)`;
+        return `Specific address: ${key}`;
+    }
+
+    async function initAddEntryForm() {
+        namedNetworkNames = await fetchNamedNetworkNames();
+
+        const namedOption = document.getElementById("shRecEntryNamedOption");
+        const namedSelect = document.getElementById("shRecEntryNamedSelect");
+
+        if (namedNetworkNames.length > 0) {
+            namedOption.style.display = "block";
+            namedSelect.innerHTML = namedNetworkNames.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
+        }
+
+        const typeSelect = document.getElementById("shRecEntryType");
+        const namedGroup = document.getElementById("shRecEntryNamedGroup");
+        const deviceGroup = document.getElementById("shRecEntryDeviceGroup");
+        const advancedGroup = document.getElementById("shRecEntryAdvancedGroup");
+        const formEl = document.getElementById("shRecAddEntryForm");
+        const addBtn = document.getElementById("btnShRecAddEntry");
+
+        function updateVisibility() {
+            namedGroup.style.display = typeSelect.value === "named" ? "block" : "none";
+            deviceGroup.style.display = typeSelect.value === "device" ? "block" : "none";
+            advancedGroup.style.display = typeSelect.value === "advanced" ? "block" : "none";
+        }
+
+        typeSelect.addEventListener("change", updateVisibility);
+        updateVisibility();
+
+        addBtn.addEventListener("click", () => {
+            formEl.style.display = "block";
+            addBtn.style.display = "none";
+        });
+
+        document.getElementById("btnShRecEntryCancel").addEventListener("click", () => {
+            formEl.style.display = "none";
+            addBtn.style.display = "inline-block";
+        });
+
+        document.getElementById("btnShRecEntryConfirm").addEventListener("click", confirmAddEntry);
+    }
+
+    async function confirmAddEntry() {
+        const type = document.getElementById("shRecEntryType").value;
+        let key = "";
+
+        if (type === "private") key = "private";
+        else if (type === "public") key = "public";
+        else if (type === "named") key = document.getElementById("shRecEntryNamedSelect").value;
+        else if (type === "device") key = document.getElementById("shRecEntryDeviceInput").value.trim();
+        else if (type === "advanced") key = document.getElementById("shRecEntryAdvancedInput").value.trim();
+
+        if (!key) {
+            await uiAlert("Enter a value first.");
             return;
         }
 
-        // Seed one empty slot immediately (an empty string for Address's array,
-        // "" is already the CNAME default) so the IP/target input is visible
-        // right away - otherwise it's hidden behind a second, easy-to-miss
-        // "+ Add" button nested inside this key's own box.
-        editBuffer.data[key] = editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "" : [""];
-        renderRecordDataEditor();
-    }
-
-    async function renameRecordDataKey(oldKey, newKeyRaw) {
-        const newKey = newKeyRaw.trim();
-        if (newKey === oldKey) return false;
-        if (newKey === "") return false;
-
-        if (Object.prototype.hasOwnProperty.call(editBuffer.data, newKey)) {
-            await uiAlert(`An entry for "${newKey}" already exists.`);
-            return false;
+        if (Object.prototype.hasOwnProperty.call(editBuffer.data, key)) {
+            await uiAlert("There's already a rule for that.");
+            return;
         }
 
-        editBuffer.data[newKey] = editBuffer.data[oldKey];
-        delete editBuffer.data[oldKey];
-        return true;
+        // Seed one empty slot immediately (an empty string for the redirect
+        // case, "" is already the default) so the IP/domain input is visible
+        // right away rather than behind yet another "+ Add" click.
+        editBuffer.data[key] = editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "" : [""];
+
+        document.getElementById("shRecAddEntryForm").style.display = "none";
+        document.getElementById("btnShRecAddEntry").style.display = "inline-block";
+        document.getElementById("shRecEntryDeviceInput").value = "";
+        document.getElementById("shRecEntryAdvancedInput").value = "";
+
+        renderRecordDataEditor();
     }
 
     // ---- Address (A/AAAA) data editor: network key -> array of IPs ----
@@ -976,30 +1078,22 @@
         const keys = Object.keys(editBuffer.data);
 
         if (keys.length === 0) {
-            container.innerHTML = '<p class="text-muted">No network entries yet.</p>';
+            container.innerHTML = '<p class="text-muted">No rules yet - add one below.</p>';
             return;
         }
 
         container.innerHTML = keys.map((key) => `<div class="well well-sm" style="margin-bottom:8px;">
             <div class="group-row" style="margin-bottom:8px;">
-                <input type="text" class="form-control input-sm rec-data-key" data-orig-key="${escapeHtml(key)}" value="${escapeHtml(key)}" style="flex:1; margin-right:8px; font-weight:600;" />
+                <span class="group-name">${escapeHtml(networkKeyLabel(key))}</span>
                 <button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button>
             </div>
+            <p class="text-muted" style="font-size:12px; margin: -4px 0 8px;">Give this group these IP address(es):</p>
             <div id="shRecAddr-${escapeHtml(key)}"></div>
         </div>`).join("");
 
         keys.forEach((key) => {
             if (!Array.isArray(editBuffer.data[key])) editBuffer.data[key] = [];
-            renderRecordAddressList(`shRecAddr-${key}`, editBuffer.data[key], "192.168.1.10 or ::1");
-        });
-
-        container.querySelectorAll(".rec-data-key").forEach((inp) => {
-            inp.addEventListener("blur", async () => {
-                const oldKey = inp.getAttribute("data-orig-key");
-                const renamed = await renameRecordDataKey(oldKey, inp.value);
-                if (renamed) renderRecordDataEditor();
-                else inp.value = oldKey;
-            });
+            renderRecordAddressList(`shRecAddr-${key}`, editBuffer.data[key], "e.g. 192.168.1.10");
         });
 
         container.querySelectorAll(".rec-data-remove").forEach((btn) => {
@@ -1055,16 +1149,16 @@
         const keys = Object.keys(editBuffer.data);
 
         if (keys.length === 0) {
-            container.innerHTML = '<p class="text-muted">No network entries yet.</p>';
+            container.innerHTML = '<p class="text-muted">No rules yet - add one below.</p>';
             return;
         }
 
         container.innerHTML = `<table class="table table-hover table-condensed">
-            <thead><tr><th>Network Key</th><th>CNAME Target</th><th style="width:40px;"></th></tr></thead>
+            <thead><tr><th>Who</th><th>Redirect To This Domain</th><th style="width:40px;"></th></tr></thead>
             <tbody>
                 ${keys.map((key) => `<tr>
-                    <td><input type="text" class="form-control input-sm rec-data-key" data-orig-key="${escapeHtml(key)}" value="${escapeHtml(key)}" /></td>
-                    <td><input type="text" class="form-control input-sm rec-cname-value" data-key="${escapeHtml(key)}" value="${escapeHtml(editBuffer.data[key] || "")}" placeholder="target.example.com" /></td>
+                    <td>${escapeHtml(networkKeyLabel(key))}</td>
+                    <td><input type="text" class="form-control input-sm rec-cname-value" data-key="${escapeHtml(key)}" value="${escapeHtml(editBuffer.data[key] || "")}" placeholder="e.g. target.example.com" /></td>
                     <td><button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button></td>
                 </tr>`).join("")}
             </tbody>
@@ -1073,15 +1167,6 @@
         container.querySelectorAll(".rec-cname-value").forEach((inp) => {
             inp.addEventListener("input", () => {
                 editBuffer.data[inp.getAttribute("data-key")] = inp.value;
-            });
-        });
-
-        container.querySelectorAll(".rec-data-key").forEach((inp) => {
-            inp.addEventListener("blur", async () => {
-                const oldKey = inp.getAttribute("data-orig-key");
-                const renamed = await renameRecordDataKey(oldKey, inp.value);
-                if (renamed) renderRecordDataEditor();
-                else inp.value = oldKey;
             });
         });
 
