@@ -1073,27 +1073,92 @@
 
     // ---- Address (A/AAAA) data editor: network key -> array of IPs ----
 
+    // Split into "checked in order" vs "fallback" because that's what the
+    // real Split Horizon app source does (SimpleAddress.cs/SimpleCNAME.cs):
+    // "public"/"private" are explicitly skipped during the main match loop
+    // and only ever consulted afterward, as a fallback - their position
+    // relative to other rules has zero effect on matching. Only the specific
+    // rules (named network / device / advanced) are order-sensitive, and
+    // among those, a named-network match short-circuits the search entirely
+    // (it does NOT keep looking for a more specific CIDR after it), so a
+    // reorderable, numbered list is the only honest way to present this.
+    function splitRuleKeys(data) {
+        const keys = Object.keys(data);
+        return {
+            specific: keys.filter((k) => k !== "public" && k !== "private"),
+            fallback: keys.filter((k) => k === "public" || k === "private")
+        };
+    }
+
+    function moveRecordDataKey(key, direction) {
+        const { specific, fallback } = splitRuleKeys(editBuffer.data);
+
+        const idx = specific.indexOf(key);
+        if (idx === -1) return;
+
+        const newIdx = idx + direction;
+        if (newIdx < 0 || newIdx >= specific.length) return;
+
+        [specific[idx], specific[newIdx]] = [specific[newIdx], specific[idx]];
+
+        const reordered = {};
+        for (const k of [...specific, ...fallback]) reordered[k] = editBuffer.data[k];
+        editBuffer.data = reordered;
+
+        renderRecordDataEditor();
+    }
+
     function renderRecordAddressData() {
         const container = document.getElementById("shRecDataContainer");
-        const keys = Object.keys(editBuffer.data);
+        const { specific, fallback } = splitRuleKeys(editBuffer.data);
 
-        if (keys.length === 0) {
+        if (specific.length === 0 && fallback.length === 0) {
             container.innerHTML = '<p class="text-muted">No rules yet - add one below.</p>';
             return;
         }
 
-        container.innerHTML = keys.map((key) => `<div class="well well-sm" style="margin-bottom:8px;">
-            <div class="group-row" style="margin-bottom:8px;">
-                <span class="group-name">${escapeHtml(networkKeyLabel(key))}</span>
-                <button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button>
-            </div>
-            <p class="text-muted" style="font-size:12px; margin: -4px 0 8px;">Give this group these IP address(es):</p>
-            <div id="shRecAddr-${escapeHtml(key)}"></div>
-        </div>`).join("");
+        function ruleBox(key, i, ordered) {
+            const orderControls = ordered ? `
+                <button class="btn btn-default btn-xs rec-move-up" data-key="${escapeHtml(key)}" ${i === 0 ? "disabled" : ""} title="Move up"><span class="fa fa-arrow-up"></span></button>
+                <button class="btn btn-default btn-xs rec-move-down" data-key="${escapeHtml(key)}" ${i === specific.length - 1 ? "disabled" : ""} title="Move down"><span class="fa fa-arrow-down"></span></button>` : "";
 
-        keys.forEach((key) => {
+            return `<div class="well well-sm" style="margin-bottom:8px;">
+                <div class="group-row" style="margin-bottom:8px;">
+                    <span class="group-name">${ordered ? `${i + 1}. ` : ""}${escapeHtml(networkKeyLabel(key))}</span>
+                    <span>${orderControls}
+                        <button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button>
+                    </span>
+                </div>
+                <p class="text-muted" style="font-size:12px; margin: -4px 0 8px;">Give this group these IP address(es):</p>
+                <div id="shRecAddr-${escapeHtml(key)}"></div>
+            </div>`;
+        }
+
+        let html = "";
+
+        if (specific.length > 0) {
+            html += '<p class="text-muted" style="margin-bottom:4px;"><strong>Checked in order</strong> - the first matching rule wins:</p>';
+            html += specific.map((key, i) => ruleBox(key, i, true)).join("");
+        }
+
+        if (fallback.length > 0) {
+            html += `<p class="text-muted" style="margin-bottom:4px; margin-top:${specific.length > 0 ? "16px" : "0"};"><strong>Fallback</strong> - used only if none of the rules above match:</p>`;
+            html += fallback.map((key) => ruleBox(key, 0, false)).join("");
+        }
+
+        container.innerHTML = html;
+
+        [...specific, ...fallback].forEach((key) => {
             if (!Array.isArray(editBuffer.data[key])) editBuffer.data[key] = [];
             renderRecordAddressList(`shRecAddr-${key}`, editBuffer.data[key], "e.g. 192.168.1.10");
+        });
+
+        container.querySelectorAll(".rec-move-up").forEach((btn) => {
+            btn.addEventListener("click", () => moveRecordDataKey(btn.getAttribute("data-key"), -1));
+        });
+
+        container.querySelectorAll(".rec-move-down").forEach((btn) => {
+            btn.addEventListener("click", () => moveRecordDataKey(btn.getAttribute("data-key"), 1));
         });
 
         container.querySelectorAll(".rec-data-remove").forEach((btn) => {
@@ -1146,28 +1211,57 @@
 
     function renderRecordCnameData() {
         const container = document.getElementById("shRecDataContainer");
-        const keys = Object.keys(editBuffer.data);
+        const { specific, fallback } = splitRuleKeys(editBuffer.data);
 
-        if (keys.length === 0) {
+        if (specific.length === 0 && fallback.length === 0) {
             container.innerHTML = '<p class="text-muted">No rules yet - add one below.</p>';
             return;
         }
 
-        container.innerHTML = `<table class="table table-hover table-condensed">
-            <thead><tr><th>Who</th><th>Redirect To This Domain</th><th style="width:40px;"></th></tr></thead>
-            <tbody>
-                ${keys.map((key) => `<tr>
-                    <td>${escapeHtml(networkKeyLabel(key))}</td>
-                    <td><input type="text" class="form-control input-sm rec-cname-value" data-key="${escapeHtml(key)}" value="${escapeHtml(editBuffer.data[key] || "")}" placeholder="e.g. target.example.com" /></td>
-                    <td><button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button></td>
-                </tr>`).join("")}
-            </tbody>
-        </table>`;
+        function rowsHtml(keys, ordered) {
+            return keys.map((key, i) => `<tr>
+                <td>${ordered ? `${i + 1}. ` : ""}${escapeHtml(networkKeyLabel(key))}</td>
+                <td><input type="text" class="form-control input-sm rec-cname-value" data-key="${escapeHtml(key)}" value="${escapeHtml(editBuffer.data[key] || "")}" placeholder="e.g. target.example.com" /></td>
+                <td style="white-space:nowrap;">
+                    ${ordered ? `<button class="btn btn-default btn-xs rec-move-up" data-key="${escapeHtml(key)}" ${i === 0 ? "disabled" : ""} title="Move up"><span class="fa fa-arrow-up"></span></button>
+                    <button class="btn btn-default btn-xs rec-move-down" data-key="${escapeHtml(key)}" ${i === keys.length - 1 ? "disabled" : ""} title="Move down"><span class="fa fa-arrow-down"></span></button>` : ""}
+                    <button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button>
+                </td>
+            </tr>`).join("");
+        }
+
+        let html = "";
+
+        if (specific.length > 0) {
+            html += `<p class="text-muted" style="margin-bottom:4px;"><strong>Checked in order</strong> - the first matching rule wins:</p>
+            <table class="table table-hover table-condensed">
+                <thead><tr><th>Who</th><th>Redirect To This Domain</th><th style="width:110px;"></th></tr></thead>
+                <tbody>${rowsHtml(specific, true)}</tbody>
+            </table>`;
+        }
+
+        if (fallback.length > 0) {
+            html += `<p class="text-muted" style="margin-bottom:4px; margin-top:${specific.length > 0 ? "16px" : "0"};"><strong>Fallback</strong> - used only if none of the rules above match:</p>
+            <table class="table table-hover table-condensed">
+                <thead><tr><th>Who</th><th>Redirect To This Domain</th><th style="width:40px;"></th></tr></thead>
+                <tbody>${rowsHtml(fallback, false)}</tbody>
+            </table>`;
+        }
+
+        container.innerHTML = html;
 
         container.querySelectorAll(".rec-cname-value").forEach((inp) => {
             inp.addEventListener("input", () => {
                 editBuffer.data[inp.getAttribute("data-key")] = inp.value;
             });
+        });
+
+        container.querySelectorAll(".rec-move-up").forEach((btn) => {
+            btn.addEventListener("click", () => moveRecordDataKey(btn.getAttribute("data-key"), -1));
+        });
+
+        container.querySelectorAll(".rec-move-down").forEach((btn) => {
+            btn.addEventListener("click", () => moveRecordDataKey(btn.getAttribute("data-key"), 1));
         });
 
         container.querySelectorAll(".rec-data-remove").forEach((btn) => {
@@ -1184,7 +1278,7 @@
         const domain = editBuffer.domain.trim();
         if (!domain) { await uiAlert("Domain is required."); return; }
         if (!editBuffer.zone) { await uiAlert("Zone is required."); return; }
-        if (Object.keys(editBuffer.data).length === 0) { await uiAlert("Add at least one network entry."); return; }
+        if (Object.keys(editBuffer.data).length === 0) { await uiAlert("Add at least one rule."); return; }
 
         const saveBtn = document.getElementById("btnShRecSave");
         saveBtn.disabled = true;
