@@ -946,7 +946,11 @@
             return;
         }
 
-        editBuffer.data[key] = editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "" : [];
+        // Seed one empty slot immediately (an empty string for Address's array,
+        // "" is already the CNAME default) so the IP/target input is visible
+        // right away - otherwise it's hidden behind a second, easy-to-miss
+        // "+ Add" button nested inside this key's own box.
+        editBuffer.data[key] = editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "" : [""];
         renderRecordDataEditor();
     }
 
