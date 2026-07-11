@@ -6,6 +6,7 @@ namespace TdnsAdvAppConfig;
 public sealed class TechnitiumClient
 {
     public const string AdvancedBlockingAppName = "Advanced Blocking";
+    public const string SplitHorizonAppName = "Split Horizon";
 
     private readonly HttpClient _http;
     private readonly string _baseUrl;
@@ -60,6 +61,33 @@ public sealed class TechnitiumClient
         using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["name"] = AdvancedBlockingAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetSplitHorizonConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(SplitHorizonAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Split Horizon' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson) ?? throw new InvalidOperationException("Split Horizon app config could not be parsed.");
+    }
+
+    public async Task SetSplitHorizonConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = SplitHorizonAppName,
             ["config"] = configJson
         });
 

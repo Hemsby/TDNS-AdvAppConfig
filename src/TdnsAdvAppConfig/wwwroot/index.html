@@ -18,6 +18,7 @@
 
     <script src="js/app.js" defer></script>
     <script src="js/config.js" defer></script>
+    <script src="js/splithorizon.js" defer></script>
 </head>
 <body>
     <script>
@@ -74,6 +75,7 @@
             <ul class="nav nav-tabs" role="tablist">
                 <li id="mainTabListDashboard" role="presentation" class="active"><a href="#mainTabPaneDashboard" data-tab="dashboard">Dashboard</a></li>
                 <li id="mainTabListConfig" role="presentation"><a href="#mainTabPaneConfig" data-tab="config">Config</a></li>
+                <li id="mainTabListSplitHorizon" role="presentation"><a href="#mainTabPaneSplitHorizon" data-tab="splithorizon">Split Horizon</a></li>
             </ul>
 
             <div class="tab-content">
@@ -100,6 +102,25 @@
                 <div id="mainTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
                     <div id="configRoot">
                         <p>Loading&hellip;</p>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneSplitHorizon" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="shTabListAppConfig" role="presentation" class="active"><a href="#shTabPaneAppConfig" data-subtab="appconfig">App Config</a></li>
+                        <li id="shTabListAppRecords" role="presentation"><a href="#shTabPaneAppRecords" data-subtab="apprecords">App Records</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="shTabPaneAppConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="splitHorizonConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="shTabPaneAppRecords" class="tab-pane" style="padding-top: 15px;">
+                            <p class="text-muted">Coming soon.</p>
+                        </div>
                     </div>
                 </div>
             </div>

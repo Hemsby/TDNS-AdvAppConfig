@@ -98,8 +98,17 @@ window.apiFetch = (function () {
 
     // Tabs mirror the official console's nav-tabs/tab-pane pattern, again
     // without needing bootstrap.min.js: just toggling .active manually.
+    const mainTabPaneIds = {
+        dashboard: "mainTabPaneDashboard",
+        config: "mainTabPaneConfig",
+        splithorizon: "mainTabPaneSplitHorizon"
+    };
+
     function initTabs() {
-        document.querySelectorAll(".nav-tabs a[data-tab]").forEach((link) => {
+        // Only wires the top-level nav-tabs (direct children of #content), not
+        // any app tab's own nested sub-tabs (e.g. Split Horizon's App
+        // Config/App Records), which use data-subtab and wire themselves up.
+        document.querySelectorAll("#content > .container > .nav-tabs a[data-tab]").forEach((link) => {
             link.addEventListener("click", (e) => {
                 e.preventDefault();
                 switchTab(link.getAttribute("data-tab"));
@@ -108,11 +117,15 @@ window.apiFetch = (function () {
     }
 
     function switchTab(tab) {
+        // These queries are unscoped, so they also clear .active off any app
+        // tab's own nested sub-tab nav/panes (they reuse the same nav-tabs/
+        // tab-pane classes for styling). Those modules restore their own
+        // sub-tab state on the "tabchange" event fired below.
         document.querySelectorAll(".nav-tabs > li").forEach((li) => li.classList.remove("active"));
         document.querySelectorAll(".tab-content > .tab-pane").forEach((pane) => pane.classList.remove("active"));
 
         document.querySelector(`.nav-tabs a[data-tab="${tab}"]`).closest("li").classList.add("active");
-        document.getElementById(tab === "dashboard" ? "mainTabPaneDashboard" : "mainTabPaneConfig").classList.add("active");
+        document.getElementById(mainTabPaneIds[tab]).classList.add("active");
 
         document.dispatchEvent(new CustomEvent("tabchange", { detail: { tab } }));
     }

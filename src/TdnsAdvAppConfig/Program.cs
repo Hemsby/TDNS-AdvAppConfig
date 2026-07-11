@@ -157,6 +157,38 @@ app.MapPost("/api/config/raw", async (JsonElement body, TechnitiumClient client)
     }
 });
 
+app.MapGet("/api/splithorizon/config/raw", async (TechnitiumClient client) =>
+{
+    try
+    {
+        JsonNode config = await client.GetSplitHorizonConfigAsync();
+        return Results.Ok(new { success = true, config, error = (string?)null });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { success = false, config = (JsonNode?)null, error = ex.Message });
+    }
+});
+
+app.MapPost("/api/splithorizon/config/raw", async (JsonElement body, TechnitiumClient client) =>
+{
+    try
+    {
+        JsonNode config = JsonNode.Parse(body.GetRawText()) ?? throw new InvalidOperationException("Empty config body.");
+
+        List<string> validationErrors = SplitHorizonConfigValidator.Validate(config);
+        if (validationErrors.Count > 0)
+            return Results.Ok(new { success = false, error = "Config rejected before saving: " + string.Join("; ", validationErrors) });
+
+        await client.SetSplitHorizonConfigAsync(config);
+        return Results.Ok(new { success = true, error = (string?)null });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { success = false, error = ex.Message });
+    }
+});
+
 app.MapGet("/api/version", () => Results.Ok(new { version = currentVersion }));
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
