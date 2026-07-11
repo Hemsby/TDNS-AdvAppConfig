@@ -189,6 +189,78 @@ app.MapPost("/api/splithorizon/config/raw", async (JsonElement body, TechnitiumC
     }
 });
 
+app.MapGet("/api/splithorizon/records", async (TechnitiumClient client) =>
+{
+    try
+    {
+        List<string> zones = await client.ListWritableZoneNamesAsync();
+        List<object> records = [];
+
+        foreach (string zone in zones)
+        {
+            foreach (SplitHorizonAppRecord rec in await client.GetSplitHorizonAppRecordsAsync(zone))
+            {
+                JsonNode? data = null;
+                try { data = JsonNode.Parse(rec.Data); } catch (JsonException) { }
+
+                records.Add(new { rec.Domain, rec.Zone, rec.Ttl, rec.Disabled, rec.ClassPath, data, dataRaw = data is null ? rec.Data : null });
+            }
+        }
+
+        return Results.Ok(new { success = true, zones, records, error = (string?)null });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { success = false, zones = Array.Empty<string>(), records = Array.Empty<object>(), error = ex.Message });
+    }
+});
+
+app.MapPost("/api/splithorizon/records", async (JsonElement body, TechnitiumClient client) =>
+{
+    try
+    {
+        if (JsonNode.Parse(body.GetRawText()) is not JsonObject req)
+            return Results.Ok(new { success = false, error = "Invalid request body." });
+
+        List<string> validationErrors = SplitHorizonAppRecordValidator.Validate(req);
+        if (validationErrors.Count > 0)
+            return Results.Ok(new { success = false, error = "Record rejected before saving: " + string.Join("; ", validationErrors) });
+
+        string domain = req["domain"]!.GetValue<string>();
+        string zone = req["zone"]!.GetValue<string>();
+        string classPath = req["classPath"]!.GetValue<string>();
+        int ttl = req["ttl"]!.GetValue<int>();
+        string recordData = req["data"]!.ToJsonString();
+
+        await client.AddSplitHorizonAppRecordAsync(domain, zone, classPath, recordData, ttl);
+        return Results.Ok(new { success = true, error = (string?)null });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { success = false, error = ex.Message });
+    }
+});
+
+app.MapPost("/api/splithorizon/records/delete", async (JsonElement body, TechnitiumClient client) =>
+{
+    try
+    {
+        JsonNode? req = JsonNode.Parse(body.GetRawText());
+        string? domain = req?["domain"]?.GetValue<string>();
+        string? zone = req?["zone"]?.GetValue<string>();
+
+        if (string.IsNullOrWhiteSpace(domain) || string.IsNullOrWhiteSpace(zone))
+            return Results.Ok(new { success = false, error = "'domain' and 'zone' are required." });
+
+        await client.DeleteSplitHorizonAppRecordAsync(domain, zone);
+        return Results.Ok(new { success = true, error = (string?)null });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { success = false, error = ex.Message });
+    }
+});
+
 app.MapGet("/api/version", () => Results.Ok(new { version = currentVersion }));
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));

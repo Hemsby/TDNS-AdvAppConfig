@@ -3,12 +3,24 @@
 
     const shPane = document.getElementById("mainTabPaneSplitHorizon");
     const root = document.getElementById("splitHorizonConfigRoot");
+    const recordsRoot = document.getElementById("splitHorizonRecordsRoot");
 
     let config = null;      // working copy, mutated directly by the form
     let loaded = false;
     let dirty = false;
     let currentGroupIndex = -1;
     let currentSubTab = "appconfig";
+
+    // App Records state. Unlike App Config there's no batched "dirty" concept -
+    // each add/edit/delete is its own immediate server round-trip, matching
+    // Technitium's own zone records console.
+    let records = [];
+    let zones = [];
+    let recordsLoaded = false;
+    let editingIndex = -1;    // -1 = adding a new record
+    let editBuffer = null;    // { domain, zone, classPath, ttl, data }
+    let editOriginalDomain = null;
+    let editOriginalZone = null;
 
     function escapeHtml(str) {
         return String(str)
@@ -44,6 +56,7 @@
         document.getElementById(subtab === "appconfig" ? "shTabPaneAppConfig" : "shTabPaneAppRecords").classList.add("active");
 
         if (subtab === "appconfig") onConfigTabActivated();
+        else if (subtab === "apprecords") onRecordsTabActivated();
     }
 
     // ---- load/save ----
@@ -154,6 +167,7 @@
     // initial load() 401'd. Retry once authenticated, same as the Config tab.
     document.addEventListener("authenticated", () => {
         if (loaded && !dirty) load();
+        if (recordsLoaded) loadRecords();
     });
 
     // ---- root layout ----
@@ -681,6 +695,449 @@
 
         if (!g.externalToInternalTranslation || typeof g.externalToInternalTranslation !== "object") g.externalToInternalTranslation = {};
         renderTranslationMap("shGrpTranslations", g.externalToInternalTranslation);
+    }
+
+    // ---- App Records (Split Horizon APP zone records) ----
+
+    function onRecordsTabActivated() {
+        if (!recordsLoaded) {
+            recordsLoaded = true;
+            loadRecords();
+        }
+    }
+
+    async function loadRecords() {
+        recordsRoot.innerHTML = "<p>Loading&hellip;</p>";
+        try {
+            const res = await apiFetch("/api/splithorizon/records");
+            const data = await res.json();
+            if (!data.success) {
+                recordsRoot.innerHTML = `<p class="text-danger">Failed to load records: ${escapeHtml(data.error || "unknown error")}</p>`;
+                return;
+            }
+
+            records = data.records || [];
+            zones = data.zones || [];
+            editingIndex = -1;
+            editBuffer = null;
+            renderRecordsRoot();
+        } catch (err) {
+            recordsRoot.innerHTML = `<p class="text-danger">Failed to load records: ${escapeHtml(err.message)}</p>`;
+        }
+    }
+
+    function classPathLabel(classPath) {
+        return classPath === "SplitHorizon.SimpleCNAME" ? "CNAME" : "Address";
+    }
+
+    function renderRecordsRoot() {
+        recordsRoot.innerHTML = `
+            <div id="shRecordsListView">
+                <div class="panel panel-default">
+                    <div class="panel-heading"><h3 class="panel-title">Split Horizon APP Records</h3></div>
+                    <div class="panel-body">
+                        <p class="text-muted">APP records serve different A/AAAA or CNAME answers depending on the client's network. Add one per domain that needs split-horizon behavior.</p>
+                        <div id="shRecordsContainer" class="list-group"></div>
+                        <button id="btnShAddRecord" class="btn btn-default btn-sm"><span class="fa fa-plus"></span> Add Record</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="shRecordEditorView" style="display:none;"></div>
+        `;
+
+        document.getElementById("btnShAddRecord").addEventListener("click", async () => {
+            if (zones.length === 0) {
+                await uiAlert("No writable primary zones were found on the DNS server. Create a zone first.");
+                return;
+            }
+            openRecordEditor(-1);
+        });
+
+        renderRecordsList();
+    }
+
+    function renderRecordsList() {
+        const container = document.getElementById("shRecordsContainer");
+
+        if (records.length === 0) {
+            container.innerHTML = '<p class="text-muted">No Split Horizon APP records found in any writable zone.</p>';
+            return;
+        }
+
+        container.innerHTML = records.map((rec, idx) => {
+            const badge = rec.disabled
+                ? '<span class="label label-default">Disabled</span>'
+                : '<span class="label label-success">Enabled</span>';
+
+            return `<div class="list-group-item group-row">
+                <div><span class="group-name">${escapeHtml(rec.domain)}</span> <span class="label label-info">${classPathLabel(rec.classPath)}</span> ${badge}</div>
+                <div class="group-actions">
+                    <button class="btn btn-default btn-xs rec-edit" data-index="${idx}">Edit</button>
+                    <button class="btn btn-danger btn-xs rec-delete" data-index="${idx}">Delete</button>
+                </div>
+            </div>`;
+        }).join("");
+
+        container.querySelectorAll(".rec-edit").forEach((btn) => {
+            btn.addEventListener("click", () => openRecordEditor(parseInt(btn.getAttribute("data-index"), 10)));
+        });
+
+        container.querySelectorAll(".rec-delete").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const idx = parseInt(btn.getAttribute("data-index"), 10);
+                const rec = records[idx];
+
+                if (!(await uiConfirm(`Delete the APP record for "${rec.domain}"? This immediately stops split-horizon responses for it.`))) return;
+
+                try {
+                    const res = await apiFetch("/api/splithorizon/records/delete", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ domain: rec.domain, zone: rec.zone })
+                    });
+                    const data = await res.json();
+                    if (!data.success) {
+                        await uiAlert("Failed to delete record: " + (data.error || "unknown error"));
+                        return;
+                    }
+                    await loadRecords();
+                } catch (err) {
+                    await uiAlert("Failed to delete record: " + err.message);
+                }
+            });
+        });
+    }
+
+    // ---- record editor ----
+
+    function openRecordEditor(index) {
+        editingIndex = index;
+
+        if (index === -1) {
+            editBuffer = { domain: "", zone: zones[0] || "", classPath: "SplitHorizon.SimpleAddress", ttl: 300, data: {} };
+            editOriginalDomain = null;
+            editOriginalZone = null;
+        } else {
+            const rec = records[index];
+            editBuffer = {
+                domain: rec.domain,
+                zone: rec.zone,
+                classPath: rec.classPath,
+                ttl: rec.ttl,
+                data: rec.data && typeof rec.data === "object" ? JSON.parse(JSON.stringify(rec.data)) : {}
+            };
+            editOriginalDomain = rec.domain;
+            editOriginalZone = rec.zone;
+        }
+
+        document.getElementById("shRecordsListView").style.display = "none";
+        document.getElementById("shRecordEditorView").style.display = "block";
+        renderRecordEditor();
+    }
+
+    function closeRecordEditor() {
+        editingIndex = -1;
+        editBuffer = null;
+        renderRecordsRoot();
+    }
+
+    function renderRecordEditor() {
+        const editorEl = document.getElementById("shRecordEditorView");
+
+        editorEl.innerHTML = `
+            <div class="panel panel-default">
+                <div class="panel-heading"><h3 class="panel-title">${editingIndex === -1 ? "Add" : "Edit"} APP Record</h3></div>
+                <div class="panel-body">
+                    <button id="btnShRecordBack" class="btn btn-default btn-sm"><span class="fa fa-arrow-left"></span> Back to Records</button>
+                    <hr />
+
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Zone</label>
+                            <div class="col-sm-9">
+                                <select class="form-control" id="shRecZone">
+                                    ${zones.map((z) => `<option value="${escapeHtml(z)}" ${z === editBuffer.zone ? "selected" : ""}>${escapeHtml(z)}</option>`).join("")}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Domain</label>
+                            <div class="col-sm-9"><input type="text" class="form-control" id="shRecDomain" placeholder="e.g. vpn.example.com" /></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">Record Type</label>
+                            <div class="col-sm-9">
+                                <select class="form-control" id="shRecClassPath">
+                                    <option value="SplitHorizon.SimpleAddress" ${editBuffer.classPath === "SplitHorizon.SimpleAddress" ? "selected" : ""}>Address (A/AAAA)</option>
+                                    <option value="SplitHorizon.SimpleCNAME" ${editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "selected" : ""}>CNAME</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="col-sm-3 control-label">TTL (seconds)</label>
+                            <div class="col-sm-9"><input type="number" class="form-control" id="shRecTtl" min="0" /></div>
+                        </div>
+                    </div>
+
+                    <h4>Network &rarr; Response Mapping</h4>
+                    <p class="text-muted">Network key can be a CIDR (e.g. 10.0.0.0/8), a named network from App Config, or the keyword &quot;public&quot;/&quot;private&quot;.</p>
+                    <div id="shRecDataContainer"></div>
+                    <button id="btnShRecAddEntry" class="btn btn-default btn-xs"><span class="fa fa-plus"></span> Add Network Entry</button>
+
+                    <div style="margin-top:16px;">
+                        <button id="btnShRecSave" class="btn btn-primary btn-sm">Save Record</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById("btnShRecordBack").addEventListener("click", closeRecordEditor);
+
+        const zoneSelect = document.getElementById("shRecZone");
+        zoneSelect.value = editBuffer.zone;
+        zoneSelect.addEventListener("change", (e) => { editBuffer.zone = e.target.value; });
+
+        const domainInput = document.getElementById("shRecDomain");
+        domainInput.value = editBuffer.domain;
+        domainInput.addEventListener("input", (e) => { editBuffer.domain = e.target.value; });
+
+        const classPathSelect = document.getElementById("shRecClassPath");
+        classPathSelect.addEventListener("change", async (e) => {
+            const newClassPath = e.target.value;
+
+            if (Object.keys(editBuffer.data).length > 0) {
+                if (!(await uiConfirm("Switching the record type clears the network entries below. Continue?"))) {
+                    classPathSelect.value = editBuffer.classPath;
+                    return;
+                }
+                editBuffer.data = {};
+            }
+
+            editBuffer.classPath = newClassPath;
+            renderRecordDataEditor();
+        });
+
+        const ttlInput = document.getElementById("shRecTtl");
+        ttlInput.value = editBuffer.ttl;
+        ttlInput.addEventListener("input", (e) => { editBuffer.ttl = parseInt(e.target.value, 10) || 0; });
+
+        document.getElementById("btnShRecAddEntry").addEventListener("click", addRecordDataEntry);
+        document.getElementById("btnShRecSave").addEventListener("click", saveRecord);
+
+        renderRecordDataEditor();
+    }
+
+    function renderRecordDataEditor() {
+        if (editBuffer.classPath === "SplitHorizon.SimpleCNAME")
+            renderRecordCnameData();
+        else
+            renderRecordAddressData();
+    }
+
+    async function addRecordDataEntry() {
+        let key = await uiPrompt('Network key (CIDR, named network, or "public"/"private"):');
+        if (!key) return;
+        key = key.trim();
+        if (!key) return;
+
+        if (Object.prototype.hasOwnProperty.call(editBuffer.data, key)) {
+            await uiAlert(`An entry for "${key}" already exists.`);
+            return;
+        }
+
+        editBuffer.data[key] = editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "" : [];
+        renderRecordDataEditor();
+    }
+
+    async function renameRecordDataKey(oldKey, newKeyRaw) {
+        const newKey = newKeyRaw.trim();
+        if (newKey === oldKey) return false;
+        if (newKey === "") return false;
+
+        if (Object.prototype.hasOwnProperty.call(editBuffer.data, newKey)) {
+            await uiAlert(`An entry for "${newKey}" already exists.`);
+            return false;
+        }
+
+        editBuffer.data[newKey] = editBuffer.data[oldKey];
+        delete editBuffer.data[oldKey];
+        return true;
+    }
+
+    // ---- Address (A/AAAA) data editor: network key -> array of IPs ----
+
+    function renderRecordAddressData() {
+        const container = document.getElementById("shRecDataContainer");
+        const keys = Object.keys(editBuffer.data);
+
+        if (keys.length === 0) {
+            container.innerHTML = '<p class="text-muted">No network entries yet.</p>';
+            return;
+        }
+
+        container.innerHTML = keys.map((key) => `<div class="well well-sm" style="margin-bottom:8px;">
+            <div class="group-row" style="margin-bottom:8px;">
+                <input type="text" class="form-control input-sm rec-data-key" data-orig-key="${escapeHtml(key)}" value="${escapeHtml(key)}" style="flex:1; margin-right:8px; font-weight:600;" />
+                <button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button>
+            </div>
+            <div id="shRecAddr-${escapeHtml(key)}"></div>
+        </div>`).join("");
+
+        keys.forEach((key) => {
+            if (!Array.isArray(editBuffer.data[key])) editBuffer.data[key] = [];
+            renderRecordAddressList(`shRecAddr-${key}`, editBuffer.data[key], "192.168.1.10 or ::1");
+        });
+
+        container.querySelectorAll(".rec-data-key").forEach((inp) => {
+            inp.addEventListener("blur", async () => {
+                const oldKey = inp.getAttribute("data-orig-key");
+                const renamed = await renameRecordDataKey(oldKey, inp.value);
+                if (renamed) renderRecordDataEditor();
+                else inp.value = oldKey;
+            });
+        });
+
+        container.querySelectorAll(".rec-data-remove").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                delete editBuffer.data[btn.getAttribute("data-key")];
+                renderRecordDataEditor();
+            });
+        });
+    }
+
+    // Same shape as the App Config tab's renderStringList, but without
+    // markDirty() calls - App Records has no batched-document dirty concept,
+    // and calling the App Config tab's markDirty() from here would incorrectly
+    // flag the *other* sub-tab as having unsaved changes.
+    function renderRecordAddressList(containerId, arrayRef, placeholder) {
+        const container = document.getElementById(containerId);
+
+        container.innerHTML = `<table class="table table-condensed" style="margin-bottom:8px;">
+            <tbody>
+                ${arrayRef.map((val, i) => `<tr>
+                    <td><input type="text" class="form-control input-sm rec-addr-item" data-index="${i}" value="${escapeHtml(val)}" placeholder="${escapeHtml(placeholder)}" /></td>
+                    <td style="width:40px;"><button class="btn btn-danger btn-xs rec-addr-remove" data-index="${i}"><span class="fa fa-trash"></span></button></td>
+                </tr>`).join("")}
+            </tbody>
+        </table>
+        <button class="btn btn-default btn-xs rec-addr-add"><span class="fa fa-plus"></span> Add</button>`;
+
+        container.querySelectorAll(".rec-addr-item").forEach((inp) => {
+            inp.addEventListener("input", () => {
+                arrayRef[parseInt(inp.getAttribute("data-index"), 10)] = inp.value;
+            });
+        });
+
+        container.querySelectorAll(".rec-addr-remove").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                arrayRef.splice(parseInt(btn.getAttribute("data-index"), 10), 1);
+                renderRecordAddressList(containerId, arrayRef, placeholder);
+            });
+        });
+
+        container.querySelector(".rec-addr-add").addEventListener("click", () => {
+            arrayRef.push("");
+            renderRecordAddressList(containerId, arrayRef, placeholder);
+            const inputs = container.querySelectorAll(".rec-addr-item");
+            if (inputs.length) inputs[inputs.length - 1].focus();
+        });
+    }
+
+    // ---- CNAME data editor: network key -> single target domain ----
+
+    function renderRecordCnameData() {
+        const container = document.getElementById("shRecDataContainer");
+        const keys = Object.keys(editBuffer.data);
+
+        if (keys.length === 0) {
+            container.innerHTML = '<p class="text-muted">No network entries yet.</p>';
+            return;
+        }
+
+        container.innerHTML = `<table class="table table-hover table-condensed">
+            <thead><tr><th>Network Key</th><th>CNAME Target</th><th style="width:40px;"></th></tr></thead>
+            <tbody>
+                ${keys.map((key) => `<tr>
+                    <td><input type="text" class="form-control input-sm rec-data-key" data-orig-key="${escapeHtml(key)}" value="${escapeHtml(key)}" /></td>
+                    <td><input type="text" class="form-control input-sm rec-cname-value" data-key="${escapeHtml(key)}" value="${escapeHtml(editBuffer.data[key] || "")}" placeholder="target.example.com" /></td>
+                    <td><button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button></td>
+                </tr>`).join("")}
+            </tbody>
+        </table>`;
+
+        container.querySelectorAll(".rec-cname-value").forEach((inp) => {
+            inp.addEventListener("input", () => {
+                editBuffer.data[inp.getAttribute("data-key")] = inp.value;
+            });
+        });
+
+        container.querySelectorAll(".rec-data-key").forEach((inp) => {
+            inp.addEventListener("blur", async () => {
+                const oldKey = inp.getAttribute("data-orig-key");
+                const renamed = await renameRecordDataKey(oldKey, inp.value);
+                if (renamed) renderRecordDataEditor();
+                else inp.value = oldKey;
+            });
+        });
+
+        container.querySelectorAll(".rec-data-remove").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                delete editBuffer.data[btn.getAttribute("data-key")];
+                renderRecordDataEditor();
+            });
+        });
+    }
+
+    // ---- save ----
+
+    async function saveRecord() {
+        const domain = editBuffer.domain.trim();
+        if (!domain) { await uiAlert("Domain is required."); return; }
+        if (!editBuffer.zone) { await uiAlert("Zone is required."); return; }
+        if (Object.keys(editBuffer.data).length === 0) { await uiAlert("Add at least one network entry."); return; }
+
+        const saveBtn = document.getElementById("btnShRecSave");
+        saveBtn.disabled = true;
+
+        try {
+            // Add's overwrite=true only replaces the record already at `domain` -
+            // if editing moved the record to a different domain/zone, the old
+            // one has to be removed separately or it's left behind as a stray.
+            const isRename = editingIndex !== -1 && (domain !== editOriginalDomain || editBuffer.zone !== editOriginalZone);
+
+            if (isRename) {
+                const delRes = await apiFetch("/api/splithorizon/records/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ domain: editOriginalDomain, zone: editOriginalZone })
+                });
+                const delData = await delRes.json();
+                if (!delData.success) {
+                    await uiAlert("Failed to move record (could not remove old entry): " + (delData.error || "unknown error"));
+                    saveBtn.disabled = false;
+                    return;
+                }
+            }
+
+            const res = await apiFetch("/api/splithorizon/records", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ domain, zone: editBuffer.zone, classPath: editBuffer.classPath, ttl: editBuffer.ttl, data: editBuffer.data })
+            });
+            const data = await res.json();
+
+            if (!data.success) {
+                await uiAlert("Failed to save record: " + (data.error || "unknown error"));
+                saveBtn.disabled = false;
+                return;
+            }
+
+            await loadRecords();
+        } catch (err) {
+            await uiAlert("Failed to save record: " + err.message);
+            saveBtn.disabled = false;
+        }
     }
 
     initSubTabs();
