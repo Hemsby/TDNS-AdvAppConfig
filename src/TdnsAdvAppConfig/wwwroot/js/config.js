@@ -95,8 +95,8 @@
         }
     });
 
-    document.addEventListener("tabchange", (e) => {
-        if (e.detail.tab === "config") onTabActivated();
+    document.addEventListener("abtabchange", (e) => {
+        if (e.detail.subtab === "config") onTabActivated();
     });
 
     // If this tab was opened before the login overlay was unlocked, its

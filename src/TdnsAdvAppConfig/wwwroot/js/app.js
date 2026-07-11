@@ -100,14 +100,15 @@ window.apiFetch = (function () {
     // without needing bootstrap.min.js: just toggling .active manually.
     const mainTabPaneIds = {
         dashboard: "mainTabPaneDashboard",
-        config: "mainTabPaneConfig",
+        advancedblocking: "mainTabPaneAdvancedBlocking",
         splithorizon: "mainTabPaneSplitHorizon"
     };
 
     function initTabs() {
         // Only wires the top-level nav-tabs (direct children of #content), not
         // any app tab's own nested sub-tabs (e.g. Split Horizon's App
-        // Config/App Records), which use data-subtab and wire themselves up.
+        // Config/App Records, or Advanced Blocking's own Dashboard/Config),
+        // which use data-subtab and wire themselves up.
         document.querySelectorAll("#content > .container > .nav-tabs a[data-tab]").forEach((link) => {
             link.addEventListener("click", (e) => {
                 e.preventDefault();
@@ -129,6 +130,40 @@ window.apiFetch = (function () {
 
         document.dispatchEvent(new CustomEvent("tabchange", { detail: { tab } }));
     }
+
+    // ---- Advanced Blocking's own Dashboard/Config sub-tabs ----
+    // Mirrors Split Horizon's sub-tab pattern exactly (see splithorizon.js):
+    // scoped to abPane throughout, since switchTab() above is unscoped and
+    // will also strip .active off these nested elements - repaired below via
+    // the "tabchange" listener.
+
+    const abPane = document.getElementById("mainTabPaneAdvancedBlocking");
+    let abCurrentSubTab = "dashboard";
+
+    function initAbSubTabs() {
+        abPane.querySelectorAll(".nav-tabs a[data-subtab]").forEach((link) => {
+            link.addEventListener("click", (e) => {
+                e.preventDefault();
+                switchAbSubTab(link.getAttribute("data-subtab"));
+            });
+        });
+    }
+
+    function switchAbSubTab(subtab) {
+        abCurrentSubTab = subtab;
+
+        abPane.querySelectorAll(".nav-tabs > li").forEach((li) => li.classList.remove("active"));
+        abPane.querySelectorAll(".tab-content > .tab-pane").forEach((pane) => pane.classList.remove("active"));
+
+        abPane.querySelector(`.nav-tabs a[data-subtab="${subtab}"]`).closest("li").classList.add("active");
+        document.getElementById(subtab === "dashboard" ? "abTabPaneDashboard" : "abTabPaneConfig").classList.add("active");
+
+        document.dispatchEvent(new CustomEvent("abtabchange", { detail: { subtab } }));
+    }
+
+    document.addEventListener("tabchange", (e) => {
+        if (e.detail.tab === "advancedblocking") switchAbSubTab(abCurrentSubTab);
+    });
 
     // Options menu mirrors the official console's #mnuUser dropdown: Bootstrap's
     // dropdown-menu is pure CSS (display toggled by an "open" class on the parent),
@@ -585,6 +620,7 @@ window.apiFetch = (function () {
 
     initTheme();
     initTabs();
+    initAbSubTabs();
     fetchStatus();
     fetchVersion();
     setInterval(fetchStatus, 15000);

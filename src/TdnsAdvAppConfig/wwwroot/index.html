@@ -75,34 +75,47 @@
 
             <ul class="nav nav-tabs" role="tablist">
                 <li id="mainTabListDashboard" role="presentation" class="active"><a href="#mainTabPaneDashboard" data-tab="dashboard">Dashboard</a></li>
-                <li id="mainTabListConfig" role="presentation"><a href="#mainTabPaneConfig" data-tab="config">Config</a></li>
+                <li id="mainTabListAdvancedBlocking" role="presentation"><a href="#mainTabPaneAdvancedBlocking" data-tab="advancedblocking">Advanced Blocking</a></li>
                 <li id="mainTabListSplitHorizon" role="presentation"><a href="#mainTabPaneSplitHorizon" data-tab="splithorizon">Split Horizon</a></li>
             </ul>
 
             <div class="tab-content">
                 <div id="mainTabPaneDashboard" class="tab-pane active" style="padding-top: 15px;">
-                    <div class="panel panel-default">
-                        <div class="panel-heading">
-                            <h3 class="panel-title">Server Status</h3>
-                        </div>
-                        <div class="panel-body" id="statusPanel">
-                            <p>Loading&hellip;</p>
-                        </div>
-                    </div>
-
-                    <div class="panel panel-default">
-                        <div class="panel-heading">
-                            <h3 class="panel-title">Blocking Groups</h3>
-                        </div>
-                        <div class="list-group" id="groupsList">
-                            <div class="list-group-item">Loading&hellip;</div>
-                        </div>
-                    </div>
+                    <p class="text-muted">Coming soon.</p>
                 </div>
 
-                <div id="mainTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
-                    <div id="configRoot">
-                        <p>Loading&hellip;</p>
+                <div id="mainTabPaneAdvancedBlocking" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="abTabListDashboard" role="presentation" class="active"><a href="#abTabPaneDashboard" data-subtab="dashboard">Dashboard</a></li>
+                        <li id="abTabListConfig" role="presentation"><a href="#abTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="abTabPaneDashboard" class="tab-pane active" style="padding-top: 15px;">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    <h3 class="panel-title">Server Status</h3>
+                                </div>
+                                <div class="panel-body" id="statusPanel">
+                                    <p>Loading&hellip;</p>
+                                </div>
+                            </div>
+
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    <h3 class="panel-title">Blocking Groups</h3>
+                                </div>
+                                <div class="list-group" id="groupsList">
+                                    <div class="list-group-item">Loading&hellip;</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="abTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div id="configRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
