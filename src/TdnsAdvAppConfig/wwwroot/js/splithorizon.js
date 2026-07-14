@@ -9,7 +9,7 @@
     let loaded = false;
     let dirty = false;
     let currentGroupIndex = -1;
-    let currentSubTab = "appconfig";
+    let currentSubTab = "apprecords";
 
     // App Records state. Unlike App Config there's no batched "dirty" concept -
     // each add/edit/delete is its own immediate server round-trip, matching
@@ -889,41 +889,40 @@
                         <div class="form-group">
                             <label class="col-sm-3 control-label">Name</label>
                             <div class="col-sm-9">
-                                <input type="text" class="form-control" id="shRecName" placeholder="e.g. example - leave blank to use the zone itself" />
-                                <p class="text-muted" style="font-size:12px; margin-top:4px;">Full name: <strong id="shRecFullName"></strong></p>
+                                <input type="text" class="form-control" id="shRecName" placeholder="e.g. example - leave blank for the zone apex" />
+                                <p class="text-muted" style="font-size:12px; margin-top:4px;">FQDN: <strong id="shRecFullName"></strong></p>
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="col-sm-3 control-label">Answer With</label>
+                            <label class="col-sm-3 control-label">Record Type</label>
                             <div class="col-sm-9">
                                 <select class="form-control" id="shRecClassPath">
-                                    <option value="SplitHorizon.SimpleAddress" ${editBuffer.classPath === "SplitHorizon.SimpleAddress" ? "selected" : ""}>An IP address</option>
-                                    <option value="SplitHorizon.SimpleCNAME" ${editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "selected" : ""}>Another domain name (redirect)</option>
+                                    <option value="SplitHorizon.SimpleAddress" ${editBuffer.classPath === "SplitHorizon.SimpleAddress" ? "selected" : ""}>Address (A/AAAA)</option>
+                                    <option value="SplitHorizon.SimpleCNAME" ${editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "selected" : ""}>CNAME</option>
                                 </select>
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="col-sm-3 control-label">Cache Time</label>
+                            <label class="col-sm-3 control-label">TTL (seconds)</label>
                             <div class="col-sm-9">
                                 <input type="number" class="form-control" id="shRecTtl" min="0" />
-                                <p class="text-muted" style="font-size:12px; margin: 4px 0 0;">How long, in seconds, other DNS servers remember this answer before checking again. 300 (5 minutes) is fine if unsure.</p>
                             </div>
                         </div>
                     </div>
 
-                    <h4>Who Gets Which Answer</h4>
-                    <p class="text-muted">Add one rule per group of people. For example: your home network gets the internal address, everyone else gets the public one.</p>
+                    <h4>Network &rarr; Response Mapping</h4>
+                    <p class="text-muted">Matched top-to-bottom against the client's source network. Private/Public are evaluated last, as fallbacks.</p>
                     <div id="shRecDataContainer"></div>
 
                     <div id="shRecAddEntryForm" class="well well-sm" style="display:none; margin-top:8px;">
                         <div class="form-group" style="margin-bottom:8px;">
-                            <label>Who is this rule for?</label>
+                            <label>Network</label>
                             <select class="form-control input-sm" id="shRecEntryType">
-                                <option value="private">People on my home/local network</option>
-                                <option value="public">People on the internet</option>
-                                <option value="named" id="shRecEntryNamedOption" style="display:none;">A specific network from App Config</option>
-                                <option value="device">One specific device (by its IP address)</option>
-                                <option value="advanced">A specific address range (advanced)</option>
+                                <option value="private">Private (RFC 1918)</option>
+                                <option value="public">Public</option>
+                                <option value="named" id="shRecEntryNamedOption" style="display:none;">Named network (App Config)</option>
+                                <option value="device">Single IP address</option>
+                                <option value="advanced">CIDR range</option>
                             </select>
                         </div>
                         <div class="form-group" id="shRecEntryNamedGroup" style="display:none; margin-bottom:8px;">
@@ -934,7 +933,6 @@
                         </div>
                         <div class="form-group" id="shRecEntryAdvancedGroup" style="display:none; margin-bottom:8px;">
                             <input type="text" class="form-control input-sm" id="shRecEntryAdvancedInput" placeholder="e.g. 192.168.1.0/24" />
-                            <p class="text-muted" style="font-size:12px; margin-top:4px;">A network address followed by a slash and a number (CIDR notation). Only use this if you know what that means - otherwise pick one of the other options above.</p>
                         </div>
                         <button class="btn btn-primary btn-xs" id="btnShRecEntryConfirm">Add This Rule</button>
                         <button class="btn btn-default btn-xs" id="btnShRecEntryCancel">Cancel</button>
@@ -1022,10 +1020,9 @@
     }
 
     function networkKeyLabel(key) {
-        if (key === "private") return "People on my home/local network";
-        if (key === "public") return "People on the internet";
-        if (namedNetworkNames.includes(key)) return `People on "${key}" (from App Config)`;
-        return `Specific address: ${key}`;
+        if (key === "private") return "Private (RFC 1918)";
+        if (key === "public") return "Public";
+        return key; // named network name or a raw CIDR/IP - self-explanatory
     }
 
     async function initAddEntryForm() {
@@ -1159,7 +1156,6 @@
                         <button class="btn btn-danger btn-xs rec-data-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button>
                     </span>
                 </div>
-                <p class="text-muted" style="font-size:12px; margin: -4px 0 8px;">Give this group these IP address(es):</p>
                 <div id="shRecAddr-${escapeHtml(key)}"></div>
             </div>`;
         }
