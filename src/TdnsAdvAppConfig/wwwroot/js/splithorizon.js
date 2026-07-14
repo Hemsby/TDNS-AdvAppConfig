@@ -277,7 +277,7 @@
 
         container.innerHTML = names.map((name) => `<div class="well well-sm" style="margin-bottom:8px;">
             <div class="group-row" style="margin-bottom:8px;">
-                <span class="group-name">${escapeHtml(name)}</span>
+                <input type="text" class="form-control input-sm network-name" data-orig-name="${escapeHtml(name)}" value="${escapeHtml(name)}" style="flex:1; margin-right:8px; font-weight:600;" />
                 <button class="btn btn-danger btn-xs network-remove" data-name="${escapeHtml(name)}"><span class="fa fa-trash"></span></button>
             </div>
             <div id="shNetworkCidrs-${escapeHtml(name)}"></div>
@@ -285,6 +285,40 @@
 
         names.forEach((name) => {
             renderStringList(`shNetworkCidrs-${name}`, config.networks[name], "10.0.0.0/8 or 2001:db8::/32");
+        });
+
+        container.querySelectorAll(".network-name").forEach((inp) => {
+            inp.addEventListener("blur", async () => {
+                const oldName = inp.getAttribute("data-orig-name");
+                const newName = inp.value.trim();
+
+                if (newName === oldName) return;
+
+                if (newName === "") {
+                    inp.value = oldName;
+                    return;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(config.networks, newName)) {
+                    await uiAlert(`A named network called "${newName}" already exists.`);
+                    inp.value = oldName;
+                    return;
+                }
+
+                // Named networks are referenced by name from App Records' rule
+                // data, which lives in zone records outside this config document -
+                // there's no way to find and update those from here, so a rename
+                // silently breaks any existing rule that referenced the old name.
+                if (!(await uiConfirm(`Any App Record rules that reference "${oldName}" by name won't be updated automatically and will stop matching. Rename anyway?`))) {
+                    inp.value = oldName;
+                    return;
+                }
+
+                config.networks[newName] = config.networks[oldName];
+                delete config.networks[oldName];
+                markDirty();
+                renderNamedNetworks();
+            });
         });
 
         container.querySelectorAll(".network-remove").forEach((btn) => {
