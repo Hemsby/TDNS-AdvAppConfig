@@ -98,9 +98,12 @@ public sealed class TechnitiumClient
         EnsureOk(result);
     }
 
-    // Only "Primary" zones accept new records; Secondary/Stub mirror another
-    // server and internal zones (localhost, reverse-lookup helpers) aren't
-    // meant for user records, so both are excluded from the picker.
+    // "Primary" and "Forwarder" zones both accept new records - confirmed in
+    // Technitium's own source (ForwarderZone.AddRecord only blocks DNSSEC
+    // record types and CNAME-at-apex; WebServiceZonesApi.cs treats the two
+    // types identically for record-modify purposes). Secondary/Stub mirror
+    // another server and internal zones (localhost, reverse-lookup helpers)
+    // aren't meant for user records, so those are excluded from the picker.
     public async Task<List<string>> ListWritableZoneNamesAsync(CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync("/api/zones/list", ct);
@@ -118,7 +121,7 @@ public sealed class TechnitiumClient
             bool isInternal = zone["internal"]?.GetValue<bool>() ?? false;
             string? name = zone["name"]?.GetValue<string>();
 
-            if (type == "Primary" && !isInternal && !string.IsNullOrEmpty(name))
+            if ((type == "Primary" || type == "Forwarder") && !isInternal && !string.IsNullOrEmpty(name))
                 names.Add(name);
         }
 
