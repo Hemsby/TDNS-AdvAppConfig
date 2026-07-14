@@ -811,16 +811,33 @@
 
     // ---- record editor ----
 
+    // The record's real identity is always the full domain name, but typing
+    // that out (and having to make it match whatever zone is selected above,
+    // or getting a confusing "not part of this domain" error) is exactly the
+    // kind of thing this tool exists to hide. The editor instead asks for a
+    // name relative to the selected zone and derives the full domain from it.
+    function relativeNameFor(domain, zone) {
+        if (domain === zone) return "";
+
+        const suffix = "." + zone;
+        if (domain.length > suffix.length && domain.toLowerCase().endsWith(suffix.toLowerCase()))
+            return domain.slice(0, domain.length - suffix.length);
+
+        return domain; // doesn't belong to this zone - shouldn't normally happen
+    }
+
     function openRecordEditor(index) {
         editingIndex = index;
 
         if (index === -1) {
-            editBuffer = { domain: "", zone: zones[0] || "", classPath: "SplitHorizon.SimpleAddress", ttl: 300, data: {} };
+            const zone = zones[0] || "";
+            editBuffer = { name: "", domain: zone, zone, classPath: "SplitHorizon.SimpleAddress", ttl: 300, data: {} };
             editOriginalDomain = null;
             editOriginalZone = null;
         } else {
             const rec = records[index];
             editBuffer = {
+                name: relativeNameFor(rec.domain, rec.zone),
                 domain: rec.domain,
                 zone: rec.zone,
                 classPath: rec.classPath,
@@ -834,6 +851,14 @@
         document.getElementById("shRecordsListView").style.display = "none";
         document.getElementById("shRecordEditorView").style.display = "block";
         renderRecordEditor();
+    }
+
+    function updateDomainFromName() {
+        const name = (editBuffer.name || "").trim();
+        editBuffer.domain = name ? `${name}.${editBuffer.zone}` : editBuffer.zone;
+
+        const fullNameEl = document.getElementById("shRecFullName");
+        if (fullNameEl) fullNameEl.textContent = editBuffer.domain;
     }
 
     function closeRecordEditor() {
@@ -862,8 +887,11 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="col-sm-3 control-label">Domain</label>
-                            <div class="col-sm-9"><input type="text" class="form-control" id="shRecDomain" placeholder="e.g. vpn.example.com" /></div>
+                            <label class="col-sm-3 control-label">Name</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="shRecName" placeholder="e.g. vpn - leave blank to use the zone itself" />
+                                <p class="text-muted" style="font-size:12px; margin-top:4px;">Full name: <strong id="shRecFullName"></strong></p>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="col-sm-3 control-label">Answer With</label>
@@ -924,11 +952,13 @@
 
         const zoneSelect = document.getElementById("shRecZone");
         zoneSelect.value = editBuffer.zone;
-        zoneSelect.addEventListener("change", (e) => { editBuffer.zone = e.target.value; });
+        zoneSelect.addEventListener("change", (e) => { editBuffer.zone = e.target.value; updateDomainFromName(); });
 
-        const domainInput = document.getElementById("shRecDomain");
-        domainInput.value = editBuffer.domain;
-        domainInput.addEventListener("input", (e) => { editBuffer.domain = e.target.value; });
+        const nameInput = document.getElementById("shRecName");
+        nameInput.value = editBuffer.name;
+        nameInput.addEventListener("input", (e) => { editBuffer.name = e.target.value; updateDomainFromName(); });
+
+        updateDomainFromName();
 
         const classPathSelect = document.getElementById("shRecClassPath");
         classPathSelect.addEventListener("change", async (e) => {
