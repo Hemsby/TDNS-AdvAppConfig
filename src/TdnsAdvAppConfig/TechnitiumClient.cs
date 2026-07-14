@@ -104,6 +104,12 @@ public sealed class TechnitiumClient
     // types identically for record-modify purposes). Secondary/Stub mirror
     // another server and internal zones (localhost, reverse-lookup helpers)
     // aren't meant for user records, so those are excluded from the picker.
+    //
+    // DNSSEC-signed Primary zones are the one exception: PrimaryZone.AddRecord()/
+    // SetRecords() explicitly throw "The record type is not supported by DNSSEC
+    // signed primary zones" for APP (and ANAME), regardless of the zone otherwise
+    // being writable. Forwarder zones have no signing concept at all, so this
+    // only excludes Primary zones with dnssecStatus other than "Unsigned".
     public async Task<List<string>> ListWritableZoneNamesAsync(CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync("/api/zones/list", ct);
@@ -120,6 +126,10 @@ public sealed class TechnitiumClient
             string? type = zone["type"]?.GetValue<string>();
             bool isInternal = zone["internal"]?.GetValue<bool>() ?? false;
             string? name = zone["name"]?.GetValue<string>();
+            string? dnssecStatus = zone["dnssecStatus"]?.GetValue<string>();
+
+            if (type == "Primary" && dnssecStatus != "Unsigned")
+                continue;
 
             if ((type == "Primary" || type == "Forwarder") && !isInternal && !string.IsNullOrEmpty(name))
                 names.Add(name);
