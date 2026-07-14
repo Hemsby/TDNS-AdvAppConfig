@@ -230,7 +230,7 @@ app.MapPost("/api/splithorizon/records", async (JsonElement body, TechnitiumClie
         string zone = req["zone"]!.GetValue<string>();
         string classPath = req["classPath"]!.GetValue<string>();
         int ttl = req["ttl"]!.GetValue<int>();
-        string recordData = req["data"]!.ToJsonString();
+        string recordData = req["data"]!.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
 
         await client.AddSplitHorizonAppRecordAsync(domain, zone, classPath, recordData, ttl);
         return Results.Ok(new { success = true, error = (string?)null });
