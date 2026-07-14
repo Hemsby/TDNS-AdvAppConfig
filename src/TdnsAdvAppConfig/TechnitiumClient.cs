@@ -128,10 +128,12 @@ public sealed class TechnitiumClient
         return names;
     }
 
-    // DnsApplicationRecordData (TechnitiumLibrary.Net.Dns.ResourceRecords) serializes
-    // its rData as PascalCase "AppName"/"ClassPath"/"Data" - distinct from the
-    // camelCase "appName"/"classPath"/"recordData" request params used to add/update
-    // it. Mixing these up silently returns nothing rather than erroring.
+    // Confirmed against a live server's actual /api/zones/records/get response
+    // (not just DnsApplicationRecordData.SerializeTo(), which is a different,
+    // internal serializer): the public HTTP API returns rData in camelCase
+    // ("appName"/"classPath"/"data"), matching every other record type's rData
+    // in the same response (e.g. SOA's "primaryNameServer", FWD's "forwarder").
+    // Using PascalCase here silently matched nothing and hid every real record.
     public async Task<List<SplitHorizonAppRecord>> GetSplitHorizonAppRecordsAsync(string zoneName, CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync($"/api/zones/records/get?domain={Uri.EscapeDataString(zoneName)}&zone={Uri.EscapeDataString(zoneName)}&listZone=true", ct);
@@ -146,7 +148,7 @@ public sealed class TechnitiumClient
                 continue;
 
             JsonNode? rData = record["rData"];
-            if (rData is null || rData["AppName"]?.GetValue<string>() != SplitHorizonAppName)
+            if (rData is null || rData["appName"]?.GetValue<string>() != SplitHorizonAppName)
                 continue;
 
             results.Add(new SplitHorizonAppRecord(
@@ -154,8 +156,8 @@ public sealed class TechnitiumClient
                 Zone: zoneName,
                 Ttl: record["ttl"]?.GetValue<int>() ?? 0,
                 Disabled: record["disabled"]?.GetValue<bool>() ?? false,
-                ClassPath: rData["ClassPath"]?.GetValue<string>() ?? "",
-                Data: rData["Data"]?.GetValue<string>() ?? ""
+                ClassPath: rData["classPath"]?.GetValue<string>() ?? "",
+                Data: rData["data"]?.GetValue<string>() ?? ""
             ));
         }
 
