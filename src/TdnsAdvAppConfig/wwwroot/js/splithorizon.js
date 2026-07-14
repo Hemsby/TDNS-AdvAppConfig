@@ -16,6 +16,7 @@
     // Technitium's own zone records console.
     let records = [];
     let zones = [];
+    let defaultRecordTtl = 3600; // overwritten from the server's own Default TTL setting once loaded
     let recordsLoaded = false;
     let editingIndex = -1;    // -1 = adding a new record
     let editBuffer = null;    // { domain, zone, classPath, ttl, data }
@@ -718,6 +719,7 @@
 
             records = data.records || [];
             zones = data.zones || [];
+            if (data.defaultTtl) defaultRecordTtl = data.defaultTtl;
             editingIndex = -1;
             editBuffer = null;
             renderRecordsRoot();
@@ -831,7 +833,7 @@
 
         if (index === -1) {
             const zone = zones[0] || "";
-            editBuffer = { name: "", domain: zone, zone, classPath: "SplitHorizon.SimpleAddress", ttl: 300, data: {} };
+            editBuffer = { name: "", domain: zone, zone, classPath: "SplitHorizon.SimpleAddress", ttl: defaultRecordTtl, data: {} };
             editOriginalDomain = null;
             editOriginalZone = null;
         } else {

@@ -207,7 +207,11 @@ app.MapGet("/api/splithorizon/records", async (TechnitiumClient client) =>
             }
         }
 
-        return Results.Ok(new { success = true, zones, records, error = (string?)null });
+        uint defaultTtl;
+        try { defaultTtl = await client.GetDefaultRecordTtlAsync(); }
+        catch { defaultTtl = 3600; } // e.g. the addon's API token may lack Settings:View permission
+
+        return Results.Ok(new { success = true, zones, records, defaultTtl, error = (string?)null });
     }
     catch (Exception ex)
     {

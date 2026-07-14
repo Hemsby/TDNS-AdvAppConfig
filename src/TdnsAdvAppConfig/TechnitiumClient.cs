@@ -98,6 +98,17 @@ public sealed class TechnitiumClient
         EnsureOk(result);
     }
 
+    // The same value Technitium's own Add Record API falls back to when `ttl`
+    // is omitted (confirmed in APIDOCS.md: "When not specified the default TTL
+    // value from settings will be used"). Requires Settings:View permission,
+    // which the addon's API token may not have been granted, so callers should
+    // treat failure as non-fatal and fall back to a hardcoded default.
+    public async Task<uint> GetDefaultRecordTtlAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync("/api/settings/get", ct);
+        return root["response"]?["defaultRecordTtl"]?.GetValue<uint>() ?? 3600;
+    }
+
     // "Primary" and "Forwarder" zones both accept new records - confirmed in
     // Technitium's own source (ForwarderZone.AddRecord only blocks DNSSEC
     // record types and CNAME-at-apex; WebServiceZonesApi.cs treats the two
