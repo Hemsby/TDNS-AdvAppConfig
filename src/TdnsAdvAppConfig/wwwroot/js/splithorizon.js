@@ -889,7 +889,7 @@
                         <div class="form-group">
                             <label class="col-sm-3 control-label">Name</label>
                             <div class="col-sm-9">
-                                <input type="text" class="form-control" id="shRecName" placeholder="e.g. vpn - leave blank to use the zone itself" />
+                                <input type="text" class="form-control" id="shRecName" placeholder="e.g. example - leave blank to use the zone itself" />
                                 <p class="text-muted" style="font-size:12px; margin-top:4px;">Full name: <strong id="shRecFullName"></strong></p>
                             </div>
                         </div>
