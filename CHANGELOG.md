@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-17
+
+### Added
+
+- Form editors for every app in Technitium's App Store (27 total), not just Advanced Blocking: Advanced Forwarding, Auto PTR, Block Page, Default Records, DNS Block List (DNSBL), DNS Rebinding Protection, DNS64, Drop Requests, Failover, Filter AAAA, Geo Continent, Geo Country, Geo Distance, Log Exporter, NO DATA, NX Domain, NX Domain Override, Query Logs (MySQL/PostgreSQL/SQL Server/Sqlite), Split Horizon, Weighted Round Robin, What Is My Dns, Wild IP, and Zone Alias. Each installed app gets its own tab with a Config editor, a Records editor for per-domain APP records, or both, with local validation before every save.
+- App Store tab: install/uninstall any app from Technitium's catalog without leaving the page.
+- Dashboard tab reworked into an App Toggles list: every installed app with a single on/off master switch, grouped into Enabled/Disabled sections with a real switch control, toggled immediately.
+- Any app not yet covered by a dedicated editor still gets a tab, falling back to a generic raw-JSON editor - the same fallback the official console itself uses.
+
+### Changed
+
+- Advanced Blocking's own status, pause/resume, and per-group controls moved from the main Dashboard to their own tab, making room for the new App Toggles list.
+
 ## [1.0.0] - 2026-07-06
 
 ### Changed
