@@ -3,14 +3,6 @@ using System.Text.Json.Nodes;
 
 namespace TdnsAdvAppConfig;
 
-// Structural/type validation for the Advanced Blocking config document, applied
-// before POST /api/config/raw forwards it to the real DNS server. This is a
-// safety net against obviously malformed submissions (wrong types, missing
-// required fields, null names) that would otherwise break the Advanced
-// Blocking app on the server until someone hand-fixes it via the official
-// console's raw JSON editor - it is not a full mirror of AdvancedBlockingApp's
-// own parser (e.g. it doesn't validate that an endpoint/network string is a
-// real IP/CIDR), just enough to catch structural mistakes.
 public static class AdvancedBlockingConfigValidator
 {
     private static readonly string[] SimpleStringArrayFields =
@@ -213,7 +205,7 @@ public static class AdvancedBlockingConfigValidator
                 if (kind != JsonValueKind.String)
                     errors.Add($"{Label(prefix, field)}[{i}] must be a URL string or an object with a 'url' field.");
 
-                continue; // valid simple string form
+                continue;
             }
 
             if (item is not JsonObject entryObj)

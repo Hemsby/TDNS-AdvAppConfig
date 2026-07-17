@@ -10,10 +10,6 @@ public sealed class AppSettings
     public string GitHubRepo { get; set; } = "Hemsby/TDNS-AdvAppConfig";
     public bool IgnoreSslErrors { get; set; } = false;
 
-    // Shared secret required to use this addon's own web UI/API. This is
-    // separate from Token (which the addon uses to talk to Technitium) -
-    // without it, anyone reaching this addon's port would have unauthenticated
-    // control over blocking via the Technitium token this addon holds.
     public string AdminSecret { get; set; } = "";
 
     public static AppSettings Load(string path)

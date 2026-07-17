@@ -1,47 +1,33 @@
 # TDNS-AdvAppConfig
 
-A companion addon for [Technitium DNS Server](https://technitium.com/dns/) that gives the **Advanced Blocking** DNS app a proper web UI: pause/resume controls (with optional timers) and a form-based config editor, instead of hand-editing its raw JSON in the official web console.
+A companion addon for [Technitium DNS Server](https://technitium.com/dns/) that gives every app in its official App Store a proper form-based web UI, instead of hand-editing each app's raw JSON config (or per-domain APP record data) in the official console's textarea editors.
 
-The official web console only exposes Advanced Blocking's config as a raw JSON textarea (Apps > Advanced Blocking > Config). There's no button to quickly pause blocking, and no form to edit groups, block lists, or endpoint/network mappings. This addon adds a small web page, styled to match the Technitium console (same CSS, header, and theme switcher), that covers both.
+Technitium's own web console exposes most apps' configuration as a raw JSON textarea (Apps > *App Name* > Config), with no form, no field-level guidance, and no validation beyond what the app itself does on reload - a malformed submission there can leave the app broken until someone hand-fixes the JSON. This addon adds a small web page, styled to match the Technitium console (same CSS, header, and theme switcher), with a dedicated tab and form editor for **all 27 apps currently in Technitium's App Store**, a Dashboard for the ones with a single on/off master switch, and an App Store tab to install/uninstall apps without leaving the page.
 
 See [CHANGELOG.md](CHANGELOG.md) for what's changed in each release.
 
 **If you deployed any version before v1.0.0, please remove it and deploy v1.0.0 fresh.** Everything prior was early, same-day iteration while real bugs were still being found and fixed - including in the self-update mechanism itself. An old build can't be trusted to reliably self-update out of that state. Apologies to anyone who ran into that; v1.0.0 is the first release meant for general use.
 
-## Screenshots
+## Supported apps
 
-| Dashboard (light) | Dashboard (dark) |
-| --- | --- |
-| ![Dashboard, light theme](docs/screenshots/dashboard-light.png) | ![Dashboard, dark theme](docs/screenshots/dashboard-dark.png) |
+Every app below has its own tab with a form editor - some are configured by one JSON document (a **Config** sub-tab), some by per-domain APP records (a **Records** sub-tab), and some by both:
 
-| Config tab — general settings (light) | Config tab — general settings (dark) |
-| --- | --- |
-| ![Config tab general settings, light theme](docs/screenshots/config-general-light.png) | ![Config tab general settings, dark theme](docs/screenshots/config-general-dark.png) |
+Advanced Blocking, Advanced Forwarding, Auto PTR, Block Page, Default Records, DNS Block List (DNSBL), DNS Rebinding Protection, DNS64, Drop Requests, Failover, Filter AAAA, Geo Continent, Geo Country, Geo Distance, Log Exporter, NO DATA, NX Domain, NX Domain Override, Query Logs (MySQL), Query Logs (PostgreSQL), Query Logs (SQL Server), Query Logs (Sqlite), Split Horizon, Weighted Round Robin, What Is My Dns, Wild IP, Zone Alias.
 
-| Config tab — endpoint/network maps and groups |
-| --- |
-| ![Config tab endpoint and network group maps with groups list](docs/screenshots/config-groups-light.png) |
-| ![Config tab endpoint and network group maps with groups list, alternate view](docs/screenshots/config-groups-light-2.png) |
-
-## Roadmap
-
-Right now this only covers the **Advanced Blocking** app. The plan is to generalize it to any app in the Technitium App Store that's configured via a JSON document (Query Logs, DNS64, Split Horizon, Failover, and the rest) — same idea: a proper form-based editor instead of hand-editing raw JSON, wherever an app's config is just a JSON blob behind a textarea in the official console.
+Only tabs for apps actually installed on your DNS server are shown. If Technitium ships a new app this project doesn't have an editor for yet, it still gets a tab - a generic raw-JSON textarea, the same fallback the official console itself uses for apps without a custom form.
 
 ## How it works
 
-The addon runs alongside Technitium DNS Server (on the primary node if clustered, or on the standalone server) and talks to the DNS Server's own HTTP API using an `Authorization: Bearer <token>` header:
+The addon runs alongside Technitium DNS Server (on the primary node if clustered, or on the standalone server) and talks to the DNS Server's own HTTP API using an `Authorization: Bearer <token>` header - reading and writing each app's config via `GET`/`POST api/apps/config/get` and `api/apps/config/set`, and each app's APP records via the zone record endpoints, the same way the official console does.
 
-- `GET api/apps/config/get?name=Advanced Blocking` — reads the current config
-- `POST api/apps/config/set` — writes the config back (whole document replace)
-
-Technitium reinitializes the app immediately on `config/set` — no restart needed, and if the server is a cluster primary, it automatically propagates the change to secondary nodes.
+Technitium reinitializes an app immediately on `config/set` — no restart needed, and if the server is a cluster primary, it automatically propagates the change to secondary nodes.
 
 **Cluster note:** point this addon at whichever node is currently primary. The DNS Server only fans out config changes to secondaries when the change is made on the primary.
 
 ## Requirements
 
-- A Technitium DNS Server with the **Advanced Blocking** app installed
-- An API token (Settings > Users > create/select a user > Create API Token) with **Apps: View + Modify** permission
+- A Technitium DNS Server, with any of the apps listed above installed that you want to manage through this addon
+- An API token (Settings > Users > create/select a user > Create API Token) with **Apps: View + Modify** permission, or **Apps: View + Modify + Delete** if you also want to Install/Uninstall apps from the App Store tab — Technitium's API requires the Delete flag for that, not Modify, despite the name
 - No .NET installation needed on the host — releases are self-contained per platform
 
 ## Configuration
@@ -70,8 +56,8 @@ Copy `config.example.json` to `config.json` next to the executable and edit it:
 
 ## Security
 
-- **Shared-secret login.** This addon's own API requires `Authorization: Bearer <adminSecret>` on every `/api/*` call — without it, anyone who could reach the port would have unauthenticated control over blocking (and, via the config editor, the ability to redirect any domain to an arbitrary IP), since `token` above grants Apps:Modify on the real DNS server. The page shows a login overlay on first load (or if the stored secret is wrong/missing) asking for `adminSecret`; once entered, it's kept in the browser's `localStorage` and attached to every request automatically. The comparison is constant-time to avoid leaking the secret's content through response-timing differences.
-- **Config validation before forwarding.** `POST /api/config/raw` (used by the Config tab's Save) validates the document's structure and types locally before forwarding it to the DNS server — required fields present, correct types, no null/duplicate group names, `blockListUrls`/`regexBlockListUrls`/`adblockListUrls` entries shaped correctly. A malformed submission is rejected with a specific error instead of reaching Technitium and potentially breaking the Advanced Blocking app until it's hand-fixed via the official console.
+- **Shared-secret login.** This addon's own API requires `Authorization: Bearer <adminSecret>` on every `/api/*` call — without it, anyone who could reach the port would have unauthenticated control over every app's config, since `token` above grants Apps:Modify (or more) on the real DNS server. The page shows a login overlay on first load (or if the stored secret is wrong/missing) asking for `adminSecret`; once entered, it's kept in the browser's `localStorage` and attached to every request automatically. The comparison is constant-time to avoid leaking the secret's content through response-timing differences.
+- **Config validation before forwarding.** Each app's Save forwards through this addon's own validator for that app's config or record-data shape first — required fields present, correct types, no null/duplicate names where the app itself would crash on reload, network/CIDR and record-type fields checked. A malformed submission is rejected with a specific error instead of reaching Technitium and potentially breaking that app until it's hand-fixed via the official console.
 - **Run it as a dedicated unprivileged user**, not root — see the systemd unit in Deployment below. `config.json` holds a Technitium API token in plaintext; keep it `chmod 600` and owned by that user on every deployment.
 - **No TLS on the addon's own page** — it's meant for a trusted LAN, same as most self-hosted admin tools. Put it behind a reverse proxy with TLS if you need to reach it over an untrusted network.
 
@@ -147,6 +133,10 @@ Not yet packaged as an image. If you run it in a container yourself, be aware th
 
 ## Dashboard tab
 
+The landing tab lists every installed app that has a single root-level on/off master switch, with its current state and a toggle to flip it immediately — no need to open that app's own Config tab just to turn it on or off. An app moves between the "Enabled" and "Disabled" sections as soon as it's toggled, and its name links straight to its own tab.
+
+Advanced Blocking's own status, pause/resume controls, and per-group management live on its own tab instead, since they're richer than a plain on/off switch:
+
 - A root status badge ("Advanced Blocking Enabled" / "Advanced Blocking Disabled for All Groups") with a **Pause All Groups** / **Resume All Groups** button. This toggles the app's root `enableBlocking` flag, which overrides every group regardless of their individual setting.
 - Each group gets its own **Pause** / **Resume** button, toggling that group's `enableBlocking` flag independently. While the root switch is off, the group list still shows each group's own state with a note that they're currently overridden.
 - **Timed pause:** the Pause button (root or per-group) has a duration dropdown — Indefinitely, 5/15/30 min, 1 hour, or **Custom…** (a number input plus a minutes/hours picker, for things like "1 minute" or "3 hours"). A timed pause shows a live "resumes in MM:SS" countdown with a "Resume Now" option.
@@ -154,15 +144,18 @@ Not yet packaged as an image. If you run it in a container yourself, be aware th
   - It's persisted to `pause-timers.json` (next to `config.json`), so a restart — a crash, or the addon's own self-update — doesn't silently lose a pending auto-resume; it's reloaded and honored on startup.
   - While you're actively picking a custom duration, the periodic status refresh pauses itself so it doesn't wipe out what you're typing.
 
-## Config tab
+## Per-app tabs
 
-A full form-based editor for the Advanced Blocking config document — no raw JSON required:
+Every app in the Supported apps list gets its own top-level tab, built from the same two building blocks depending on what that app actually needs:
 
-- **General settings**: blocking answer TTL, block list update interval.
-- **Local endpoint group map** / **network group map**: key-value editors where the group is a dropdown (can't accidentally reference a group that doesn't exist). Keys can be renamed inline.
-- **Groups**: add, rename, and delete groups. Renaming a group automatically updates any endpoint/network map entries that pointed at the old name.
-- **Per-group editor** covering every field: toggles (enable blocking, TXT blocking report, block-as-NXDOMAIN), blocking addresses, allowed/blocked domains, allow list URLs, and block list URLs (with an "Advanced" toggle per URL for the `blockAsNxDomain`/`blockingAddresses` override), plus the regex and adblock-list equivalents.
-- A single **Save Changes** / **Discard** pair at the top — edits are held in memory until you save, with an unsaved-changes indicator and a warning if you try to close the tab with pending changes.
+- **Config**: a full form-based editor for that app's JSON config document, in place of the raw-JSON textarea the official console shows — general settings, key-to-group/key-to-set maps rendered as pickers instead of free text, add/rename/delete for named things like groups or sets (with cross-references kept in sync automatically where renaming or deleting one would otherwise leave a dangling reference), and per-field validation before saving.
+- **Records**: for apps configured per-domain via APP records rather than one shared document, a list of that app's records in every writable zone, with add/edit/delete and a form for whatever data shape that record type needs (address lists, weighted entries, allowed-network ranges, and so on, depending on the app).
+
+Every editor validates locally before forwarding to Technitium, so a malformed submission is rejected with a specific error instead of reaching the DNS server and potentially breaking that app until it's hand-fixed via the official console.
+
+## App Store tab
+
+Lists installed apps (with an Uninstall button) and available apps from Technitium's own App Store catalog (with an Install button), without leaving this page. A newly installed app's tab appears immediately, using its dedicated editor if one exists above, or the generic raw-JSON fallback otherwise.
 
 ## Look and feel
 
@@ -184,3 +177,4 @@ The options menu shows the current version with a "Check for updates" link. If a
 
 - No multi-node config / auto primary-detection — you point it at one server URL, which must be the primary if clustered.
 - Docker has no one-click update path yet.
+- A Technitium app released after this project's last update falls back to a generic raw-JSON tab until a dedicated editor is added for it.

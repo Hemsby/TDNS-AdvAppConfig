@@ -1,12 +1,40 @@
 using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace TdnsAdvAppConfig;
 
 public sealed class TechnitiumClient
 {
+    internal static readonly JsonDocumentOptions CommentTolerantJsonOptions = new() { CommentHandling = JsonCommentHandling.Skip };
+
     public const string AdvancedBlockingAppName = "Advanced Blocking";
     public const string SplitHorizonAppName = "Split Horizon";
+    public const string AdvancedForwardingAppName = "Advanced Forwarding";
+    public const string BlockPageAppName = "Block Page";
+    public const string DefaultRecordsAppName = "Default Records";
+    public const string DnsBlockListAppName = "DNS Block List (DNSBL)";
+    public const string DnsRebindingProtectionAppName = "DNS Rebinding Protection";
+    public const string AutoPtrAppName = "Auto PTR";
+    public const string Dns64AppName = "DNS64";
+    public const string DropRequestsAppName = "Drop Requests";
+    public const string FilterAaaaAppName = "Filter AAAA";
+    public const string GeoContinentAppName = "Geo Continent";
+    public const string GeoCountryAppName = "Geo Country";
+    public const string GeoDistanceAppName = "Geo Distance";
+    public const string FailoverAppName = "Failover";
+    public const string LogExporterAppName = "Log Exporter";
+    public const string NoDataAppName = "NO DATA";
+    public const string NxDomainAppName = "NX Domain";
+    public const string NxDomainOverrideAppName = "NX Domain Override";
+    public const string QueryLogsMySqlAppName = "Query Logs (MySQL)";
+    public const string QueryLogsPostgreSqlAppName = "Query Logs (PostgreSQL)";
+    public const string QueryLogsSqlServerAppName = "Query Logs (SQL Server)";
+    public const string QueryLogsSqliteAppName = "Query Logs (Sqlite)";
+    public const string WeightedRoundRobinAppName = "Weighted Round Robin";
+    public const string WhatIsMyDnsAppName = "What Is My Dns";
+    public const string WildIpAppName = "Wild IP";
+    public const string ZoneAliasAppName = "Zone Alias";
 
     private readonly HttpClient _http;
     private readonly string _baseUrl;
@@ -21,10 +49,6 @@ public sealed class TechnitiumClient
 
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
 
-        // The DNS Server checks Authorization: Bearer first, falling back to a
-        // ?token=/form token only if absent. Using the header keeps the token
-        // out of URLs entirely (no risk of it showing up in access logs, proxy
-        // logs, or browser history) - the token= fallback is not used here.
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", settings.Token);
     }
 
@@ -44,6 +68,42 @@ public sealed class TechnitiumClient
         return false;
     }
 
+    public async Task<JsonNode> ListInstalledAppsAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync("/api/apps/list", ct);
+        return root["response"] ?? throw new InvalidOperationException("Empty response from server.");
+    }
+
+    public async Task<JsonNode> ListStoreAppsAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync("/api/apps/listStoreApps", ct);
+        return root["response"] ?? throw new InvalidOperationException("Empty response from server.");
+    }
+
+    public async Task InstallAppAsync(string name, string url, CancellationToken ct = default)
+    {
+        Dictionary<string, string> form = new() { ["name"] = name, ["url"] = url };
+        await PostFormAsync("/api/apps/downloadAndInstall", form, ct);
+    }
+
+    public async Task UninstallAppAsync(string name, CancellationToken ct = default)
+    {
+        Dictionary<string, string> form = new() { ["name"] = name };
+        await PostFormAsync("/api/apps/uninstall", form, ct);
+    }
+
+    public async Task<string?> GetAppConfigRawAsync(string appName, CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(appName)}", ct);
+        return root["response"]?["config"]?.GetValue<string>();
+    }
+
+    public async Task SetAppConfigRawAsync(string appName, string? config, CancellationToken ct = default)
+    {
+        Dictionary<string, string> form = new() { ["name"] = appName, ["config"] = config ?? "" };
+        await PostFormAsync("/api/apps/config/set", form, ct);
+    }
+
     public async Task<JsonNode> GetAdvancedBlockingConfigAsync(CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(AdvancedBlockingAppName)}", ct);
@@ -51,7 +111,7 @@ public sealed class TechnitiumClient
         if (string.IsNullOrEmpty(configJson))
             throw new InvalidOperationException("The 'Advanced Blocking' app is not installed or has no configuration.");
 
-        return JsonNode.Parse(configJson) ?? throw new InvalidOperationException("Advanced Blocking app config could not be parsed.");
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Advanced Blocking app config could not be parsed.");
     }
 
     public async Task SetAdvancedBlockingConfigAsync(JsonNode config, CancellationToken ct = default)
@@ -78,7 +138,7 @@ public sealed class TechnitiumClient
         if (string.IsNullOrEmpty(configJson))
             throw new InvalidOperationException("The 'Split Horizon' app is not installed or has no configuration.");
 
-        return JsonNode.Parse(configJson) ?? throw new InvalidOperationException("Split Horizon app config could not be parsed.");
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Split Horizon app config could not be parsed.");
     }
 
     public async Task SetSplitHorizonConfigAsync(JsonNode config, CancellationToken ct = default)
@@ -98,29 +158,525 @@ public sealed class TechnitiumClient
         EnsureOk(result);
     }
 
-    // The same value Technitium's own Add Record API falls back to when `ttl`
-    // is omitted (confirmed in APIDOCS.md: "When not specified the default TTL
-    // value from settings will be used"). Requires Settings:View permission,
-    // which the addon's API token may not have been granted, so callers should
-    // treat failure as non-fatal and fall back to a hardcoded default.
+    public async Task<JsonNode> GetAdvancedForwardingConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(AdvancedForwardingAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Advanced Forwarding' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Advanced Forwarding app config could not be parsed.");
+    }
+
+    public async Task SetAdvancedForwardingConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = AdvancedForwardingAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetBlockPageConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(BlockPageAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Block Page' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Block Page app config could not be parsed.");
+    }
+
+    public async Task SetBlockPageConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = BlockPageAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetDefaultRecordsConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(DefaultRecordsAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Default Records' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Default Records app config could not be parsed.");
+    }
+
+    public async Task SetDefaultRecordsConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = DefaultRecordsAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetDns64ConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(Dns64AppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'DNS64' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("DNS64 app config could not be parsed.");
+    }
+
+    public async Task SetDns64ConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = Dns64AppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetDropRequestsConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(DropRequestsAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Drop Requests' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Drop Requests app config could not be parsed.");
+    }
+
+    public async Task SetDropRequestsConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = DropRequestsAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetFilterAaaaConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(FilterAaaaAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Filter AAAA' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Filter AAAA app config could not be parsed.");
+    }
+
+    public async Task SetFilterAaaaConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = FilterAaaaAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetGeoContinentConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(GeoContinentAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Geo Continent' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Geo Continent app config could not be parsed.");
+    }
+
+    public async Task SetGeoContinentConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = GeoContinentAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetGeoCountryConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(GeoCountryAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Geo Country' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Geo Country app config could not be parsed.");
+    }
+
+    public async Task SetGeoCountryConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = GeoCountryAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetFailoverConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(FailoverAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Failover' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Failover app config could not be parsed.");
+    }
+
+    public async Task SetFailoverConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = FailoverAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetLogExporterConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(LogExporterAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Log Exporter' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Log Exporter app config could not be parsed.");
+    }
+
+    public async Task SetLogExporterConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = LogExporterAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetNxDomainConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(NxDomainAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'NX Domain' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("NX Domain app config could not be parsed.");
+    }
+
+    public async Task SetNxDomainConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = NxDomainAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetZoneAliasConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(ZoneAliasAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Zone Alias' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Zone Alias app config could not be parsed.");
+    }
+
+    public async Task SetZoneAliasConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = ZoneAliasAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetNxDomainOverrideConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(NxDomainOverrideAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'NX Domain Override' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("NX Domain Override app config could not be parsed.");
+    }
+
+    public async Task SetNxDomainOverrideConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = NxDomainOverrideAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetQueryLogsMySqlConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(QueryLogsMySqlAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Query Logs (MySQL)' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Query Logs (MySQL) app config could not be parsed.");
+    }
+
+    public async Task SetQueryLogsMySqlConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = QueryLogsMySqlAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetQueryLogsPostgreSqlConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(QueryLogsPostgreSqlAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Query Logs (PostgreSQL)' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Query Logs (PostgreSQL) app config could not be parsed.");
+    }
+
+    public async Task SetQueryLogsPostgreSqlConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = QueryLogsPostgreSqlAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetQueryLogsSqlServerConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(QueryLogsSqlServerAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Query Logs (SQL Server)' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Query Logs (SQL Server) app config could not be parsed.");
+    }
+
+    public async Task SetQueryLogsSqlServerConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = QueryLogsSqlServerAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetQueryLogsSqliteConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(QueryLogsSqliteAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'Query Logs (Sqlite)' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("Query Logs (Sqlite) app config could not be parsed.");
+    }
+
+    public async Task SetQueryLogsSqliteConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = QueryLogsSqliteAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetDnsRebindingProtectionConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(DnsRebindingProtectionAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'DNS Rebinding Protection' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("DNS Rebinding Protection app config could not be parsed.");
+    }
+
+    public async Task SetDnsRebindingProtectionConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = DnsRebindingProtectionAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
+    public async Task<JsonNode> GetDnsBlockListConfigAsync(CancellationToken ct = default)
+    {
+        JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(DnsBlockListAppName)}", ct);
+        string? configJson = root["response"]?["config"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(configJson))
+            throw new InvalidOperationException("The 'DNS Block List (DNSBL)' app is not installed or has no configuration.");
+
+        return JsonNode.Parse(configJson, documentOptions: CommentTolerantJsonOptions) ?? throw new InvalidOperationException("DNS Block List app config could not be parsed.");
+    }
+
+    public async Task SetDnsBlockListConfigAsync(JsonNode config, CancellationToken ct = default)
+    {
+        string configJson = config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+
+        using FormUrlEncodedContent content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["name"] = DnsBlockListAppName,
+            ["config"] = configJson
+        });
+
+        using HttpResponseMessage response = await _http.PostAsync($"{_baseUrl}/api/apps/config/set", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        JsonNode result = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) ?? throw new InvalidOperationException("Empty response from server.");
+        EnsureOk(result);
+    }
+
     public async Task<uint> GetDefaultRecordTtlAsync(CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync("/api/settings/get", ct);
         return root["response"]?["defaultRecordTtl"]?.GetValue<uint>() ?? 3600;
     }
 
-    // "Primary" and "Forwarder" zones both accept new records - confirmed in
-    // Technitium's own source (ForwarderZone.AddRecord only blocks DNSSEC
-    // record types and CNAME-at-apex; WebServiceZonesApi.cs treats the two
-    // types identically for record-modify purposes). Secondary/Stub mirror
-    // another server and internal zones (localhost, reverse-lookup helpers)
-    // aren't meant for user records, so those are excluded from the picker.
-    //
-    // DNSSEC-signed Primary zones are the one exception: PrimaryZone.AddRecord()/
-    // SetRecords() explicitly throw "The record type is not supported by DNSSEC
-    // signed primary zones" for APP (and ANAME), regardless of the zone otherwise
-    // being writable. Forwarder zones have no signing concept at all, so this
-    // only excludes Primary zones with dnssecStatus other than "Unsigned".
     public async Task<List<string>> ListWritableZoneNamesAsync(CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync("/api/zones/list", ct);
@@ -149,30 +705,24 @@ public sealed class TechnitiumClient
         return names;
     }
 
-    // Confirmed against a live server's actual /api/zones/records/get response
-    // (not just DnsApplicationRecordData.SerializeTo(), which is a different,
-    // internal serializer): the public HTTP API returns rData in camelCase
-    // ("appName"/"classPath"/"data"), matching every other record type's rData
-    // in the same response (e.g. SOA's "primaryNameServer", FWD's "forwarder").
-    // Using PascalCase here silently matched nothing and hid every real record.
-    public async Task<List<SplitHorizonAppRecord>> GetSplitHorizonAppRecordsAsync(string zoneName, CancellationToken ct = default)
+    public async Task<List<AppRecord>> GetAppRecordsAsync(string zoneName, string appName, CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync($"/api/zones/records/get?domain={Uri.EscapeDataString(zoneName)}&zone={Uri.EscapeDataString(zoneName)}&listZone=true", ct);
         JsonArray? records = root["response"]?["records"]?.AsArray();
         if (records is null)
             return [];
 
-        List<SplitHorizonAppRecord> results = [];
+        List<AppRecord> results = [];
         foreach (JsonNode? record in records)
         {
             if (record is null || record["type"]?.GetValue<string>() != "APP")
                 continue;
 
             JsonNode? rData = record["rData"];
-            if (rData is null || rData["appName"]?.GetValue<string>() != SplitHorizonAppName)
+            if (rData is null || rData["appName"]?.GetValue<string>() != appName)
                 continue;
 
-            results.Add(new SplitHorizonAppRecord(
+            results.Add(new AppRecord(
                 Domain: record["name"]?.GetValue<string>() ?? "",
                 Zone: zoneName,
                 Ttl: record["ttl"]?.GetValue<int>() ?? 0,
@@ -185,9 +735,7 @@ public sealed class TechnitiumClient
         return results;
     }
 
-    // overwrite=true always: a domain is only ever meant to hold one Split
-    // Horizon APP record, so "add" doubles as "replace" for the edit flow.
-    public async Task AddSplitHorizonAppRecordAsync(string domain, string zone, string classPath, string recordData, int ttl, CancellationToken ct = default)
+    public async Task AddAppRecordAsync(string domain, string zone, string appName, string classPath, string recordData, int ttl, CancellationToken ct = default)
     {
         Dictionary<string, string> form = new()
         {
@@ -196,7 +744,7 @@ public sealed class TechnitiumClient
             ["type"] = "APP",
             ["ttl"] = ttl.ToString(),
             ["overwrite"] = "true",
-            ["appName"] = SplitHorizonAppName,
+            ["appName"] = appName,
             ["classPath"] = classPath,
             ["recordData"] = recordData
         };
@@ -204,7 +752,7 @@ public sealed class TechnitiumClient
         await PostFormAsync("/api/zones/records/add", form, ct);
     }
 
-    public async Task DeleteSplitHorizonAppRecordAsync(string domain, string zone, CancellationToken ct = default)
+    public async Task DeleteAppRecordAsync(string domain, string zone, CancellationToken ct = default)
     {
         Dictionary<string, string> form = new()
         {
@@ -245,4 +793,4 @@ public sealed class TechnitiumClient
     }
 }
 
-public sealed record SplitHorizonAppRecord(string Domain, string Zone, int Ttl, bool Disabled, string ClassPath, string Data);
+public sealed record AppRecord(string Domain, string Zone, int Ttl, bool Disabled, string ClassPath, string Data);

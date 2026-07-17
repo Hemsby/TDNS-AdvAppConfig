@@ -3,7 +3,7 @@
 
     const root = document.getElementById("configRoot");
 
-    let config = null;      // working copy, mutated directly by the form
+    let config = null;
     let loaded = false;
     let dirty = false;
     let currentGroupIndex = -1;
@@ -83,8 +83,6 @@
             return;
         }
 
-        // Pick up changes made from the Dashboard tab (pause/resume), but
-        // don't clobber in-progress edits here.
         if (!dirty) load();
     }
 
@@ -99,13 +97,9 @@
         if (e.detail.subtab === "config") onTabActivated();
     });
 
-    // If this tab was opened before the login overlay was unlocked, its
-    // initial load() 401'd. Retry once authenticated, same as the Dashboard.
     document.addEventListener("authenticated", () => {
         if (loaded && !dirty) load();
     });
-
-    // ---- root layout ----
 
     function renderRoot() {
         root.innerHTML = `
@@ -208,82 +202,12 @@
         renderGroupsList();
     }
 
-    // ---- key/value map editors (endpoint map, network map) ----
-
-    function renderMapTable(containerId, mapObj, keyLabel, keyPlaceholder) {
-        const container = document.getElementById(containerId);
-        const keys = Object.keys(mapObj);
-
-        if (keys.length === 0) {
-            container.innerHTML = '<p class="text-muted">No mappings configured.</p>';
-            return;
-        }
-
-        if (groupNames().length === 0) {
-            container.innerHTML = '<p class="text-danger">Create a group below before mapping to one.</p>';
-            return;
-        }
-
-        container.innerHTML = `<table class="table table-hover table-condensed">
-            <thead><tr><th>${escapeHtml(keyLabel)}</th><th>Group</th><th style="width:40px;"></th></tr></thead>
-            <tbody>
-                ${keys.map((key) => `<tr>
-                    <td><input type="text" class="form-control input-sm map-key" data-orig-key="${escapeHtml(key)}" value="${escapeHtml(key)}" placeholder="${escapeHtml(keyPlaceholder)}" /></td>
-                    <td><select class="form-control input-sm map-value" data-key="${escapeHtml(key)}">
-                        ${groupNames().map((g) => `<option value="${escapeHtml(g)}" ${g === mapObj[key] ? "selected" : ""}>${escapeHtml(g)}</option>`).join("")}
-                    </select></td>
-                    <td><button class="btn btn-danger btn-xs map-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button></td>
-                </tr>`).join("")}
-            </tbody>
-        </table>`;
-
-        container.querySelectorAll(".map-value").forEach((sel) => {
-            sel.addEventListener("change", () => {
-                mapObj[sel.getAttribute("data-key")] = sel.value;
-                markDirty();
-            });
-        });
-
-        container.querySelectorAll(".map-remove").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                delete mapObj[btn.getAttribute("data-key")];
-                markDirty();
-                renderMapTable(containerId, mapObj, keyLabel, keyPlaceholder);
-            });
-        });
-
-        container.querySelectorAll(".map-key").forEach((inp) => {
-            inp.addEventListener("blur", async () => {
-                const oldKey = inp.getAttribute("data-orig-key");
-                const newKey = inp.value.trim();
-
-                if (newKey === oldKey) return;
-
-                if (newKey === "") {
-                    inp.value = oldKey;
-                    return;
-                }
-
-                if (Object.prototype.hasOwnProperty.call(mapObj, newKey)) {
-                    await uiAlert(`A mapping for "${newKey}" already exists.`);
-                    inp.value = oldKey;
-                    return;
-                }
-
-                mapObj[newKey] = mapObj[oldKey];
-                delete mapObj[oldKey];
-                markDirty();
-                renderMapTable(containerId, mapObj, keyLabel, keyPlaceholder);
-            });
-        });
-    }
-
     function renderEndpointMap() {
-        renderMapTable("endpointMapContainer", config.localEndPointGroupMap, "Endpoint", "127.0.0.1 or host.example.com:443");
+        AppHelpers.renderGroupMapTable("endpointMapContainer", config.localEndPointGroupMap, "Endpoint", "127.0.0.1 or host.example.com:443", groupNames, markDirty, "group");
     }
 
     function renderNetworkMap() {
-        renderMapTable("networkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24");
+        AppHelpers.renderGroupMapTable("networkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "group");
     }
 
     async function addEndpointMapping() {
@@ -321,8 +245,6 @@
         markDirty();
         renderNetworkMap();
     }
-
-    // ---- groups list ----
 
     function renderGroupsList() {
         const container = document.getElementById("groupsContainer");
@@ -400,8 +322,6 @@
         renderNetworkMap();
     }
 
-    // ---- simple string list editor (blockingAddresses, allowed, blocked, *Regex, allowListUrls, regexAllowListUrls) ----
-
     function renderStringList(containerId, arrayRef, placeholder) {
         const container = document.getElementById(containerId);
 
@@ -438,9 +358,6 @@
             if (inputs.length) inputs[inputs.length - 1].focus();
         });
     }
-
-    // ---- URL entry list editor: string OR {url, blockAsNxDomain, blockingAddresses} ----
-    // (blockListUrls, regexBlockListUrls, adblockListUrls)
 
     function renderUrlEntryList(containerId, arrayRef) {
         const container = document.getElementById(containerId);
@@ -516,8 +433,6 @@
             renderUrlEntryList(containerId, arrayRef);
         });
     }
-
-    // ---- group editor ----
 
     function openGroupEditor(index) {
         currentGroupIndex = index;

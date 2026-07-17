@@ -5,7 +5,7 @@ namespace TdnsAdvAppConfig;
 
 public sealed class PauseTimerService : IDisposable
 {
-    public const string RootTarget = "\0root"; // can't collide with a real group name
+    public const string RootTarget = "\0root";
 
     private readonly string _stateFilePath;
     private readonly BlockingService _blockingService;
@@ -73,7 +73,6 @@ public sealed class PauseTimerService : IDisposable
             }
             catch
             {
-                // target may have been renamed/deleted since the timer was set; drop it regardless
             }
         }
 
@@ -102,7 +101,6 @@ public sealed class PauseTimerService : IDisposable
         }
         catch
         {
-            // corrupt/missing state file: start with no pending timers rather than fail startup
         }
     }
 
@@ -114,7 +112,6 @@ public sealed class PauseTimerService : IDisposable
         }
         catch
         {
-            // best-effort persistence; an in-memory-only timer still works for this process's lifetime
         }
     }
 

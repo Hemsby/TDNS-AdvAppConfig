@@ -43,10 +43,6 @@
     }
 
 #header .subtitle {
-    /* Absolutely positioned relative to #header itself, so it's centered on
-       the header's true midpoint regardless of how wide the title/menu are
-       (a flex/grid middle column only centers in the space *between* them,
-       which isn't the same point unless both sides happen to be equal width). */
     position: absolute;
     left: 50%;
     top: 50%;
@@ -62,15 +58,11 @@
 }
 
 #header .menu {
-    /* main.css floats .menu right, which flex items ignore anyway; this keeps
-       it correctly positioned even if main.css's float rule changes. */
     float: none;
     padding: 0;
 }
 
 .container {
-    /* main.css's #header uses height:32px + margin-bottom:-32px (a collapse trick),
-       so padding-top here must clear that 32px or content renders under the header. */
     padding-top: 55px;
     min-width: unset;
     width: 90%;
@@ -157,10 +149,6 @@
         font-size: 11px;
     }
 
-/* Technitium's own dark-mode.css / amber-mode.css don't style Bootstrap's
-   list-group component (the official console doesn't use it), so without
-   these overrides "Blocking Groups" rows stay white-on-dark-page. Colors
-   match the panel-body treatment those files already define, for consistency. */
 .dark-mode .list-group-item {
     background-color: #252525;
     border-color: #3a3a3c;
@@ -182,12 +170,6 @@
     margin-top: 16px;
 }
 
-/* ===== Responsive ===== */
-
-/* main.css hard-floors #header/#footer at 970px (a relic of the full
-   Technitium console's fixed-width layout). .container is already freed of
-   that above; free these two too or the page gets a horizontal scrollbar on
-   any viewport narrower than 970px. */
 #header,
 #footer {
     min-width: unset;
@@ -264,4 +246,60 @@
         padding-left: 8px;
         padding-right: 8px;
     }
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    margin: 0;
+    vertical-align: middle;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-switch .toggle-slider {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-color: #777;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background-color .15s ease-in-out;
+}
+
+.toggle-switch .toggle-slider::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    bottom: 3px;
+    width: 18px;
+    height: 18px;
+    background-color: #fff;
+    border-radius: 50%;
+    transition: transform .15s ease-in-out;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: #5cb85c;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.toggle-switch input:focus + .toggle-slider {
+    box-shadow: 0 0 0 2px rgba(92, 184, 92, 0.4);
 }

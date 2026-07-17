@@ -353,3 +353,7 @@ body.dark-mode {
 .dark-mode .label-success {
     background-color: #357935;
 }
+
+.dark-mode .toggle-switch input:checked + .toggle-slider {
+    background-color: #357935;
+}

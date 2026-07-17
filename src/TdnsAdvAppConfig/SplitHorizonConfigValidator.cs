@@ -3,12 +3,6 @@ using System.Text.Json.Nodes;
 
 namespace TdnsAdvAppConfig;
 
-// Structural/type validation for the Split Horizon config document, applied
-// before POST /api/splithorizon/config/raw forwards it to the real DNS
-// server. Mirrors AdvancedBlockingConfigValidator: just enough to catch
-// structural mistakes (wrong types, missing/duplicate names), not a full
-// mirror of SplitHorizonApp's own parser (e.g. it doesn't validate that a
-// network string is a real IP/CIDR).
 public static class SplitHorizonConfigValidator
 {
     public static List<string> Validate(JsonNode? config)
@@ -49,7 +43,7 @@ public static class SplitHorizonConfigValidator
         ValidateOptionalStringMap(root, "networkGroupMap", errors);
 
         if (!root.TryGetPropertyValue("groups", out JsonNode? groupsNode) || groupsNode is null)
-            return errors; // 'groups' is optional: address translation is opt-in via enableAddressTranslation
+            return errors;
 
         if (groupsNode is not JsonArray groupsArray)
         {

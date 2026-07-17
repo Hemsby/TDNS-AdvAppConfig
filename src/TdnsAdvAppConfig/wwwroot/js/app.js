@@ -1,8 +1,3 @@
-// Shared-secret auth: every /api/* call needs Authorization: Bearer <secret>.
-// This module owns the stored secret and the login overlay, and exposes
-// window.apiFetch so config.js (loaded after this file) uses the same gate.
-// Defined at top level (not inside the IIFE below) specifically so it's
-// available on window before config.js's own script runs.
 window.apiFetch = (function () {
     "use strict";
 
@@ -31,9 +26,6 @@ window.apiFetch = (function () {
         overlay.classList.remove("visible");
     }
 
-    // Wraps fetch(): attaches the stored secret as an Authorization header, and
-    // on a 401 response shows the login overlay and throws, so every existing
-    // call site's try/catch already handles it as a normal failure.
     async function apiFetch(url, options) {
         options = options || {};
         options.headers = Object.assign({}, options.headers, {
@@ -96,32 +88,50 @@ window.apiFetch = (function () {
 
     let latestReleaseUrl = null;
 
-    // Tabs mirror the official console's nav-tabs/tab-pane pattern, again
-    // without needing bootstrap.min.js: just toggling .active manually.
     const mainTabPaneIds = {
         dashboard: "mainTabPaneDashboard",
         advancedblocking: "mainTabPaneAdvancedBlocking",
-        splithorizon: "mainTabPaneSplitHorizon"
+        advancedforwarding: "mainTabPaneAdvancedForwarding",
+        splithorizon: "mainTabPaneSplitHorizon",
+        blockpage: "mainTabPaneBlockPage",
+        defaultrecords: "mainTabPaneDefaultRecords",
+        dnsblocklist: "mainTabPaneDnsBlockList",
+        dnsrebindingprotection: "mainTabPaneDnsRebindingProtection",
+        autoptr: "mainTabPaneAutoPtr",
+        dns64: "mainTabPaneDns64",
+        droprequests: "mainTabPaneDropRequests",
+        filteraaaa: "mainTabPaneFilterAaaa",
+        geocontinent: "mainTabPaneGeoContinent",
+        geocountry: "mainTabPaneGeoCountry",
+        geodistance: "mainTabPaneGeoDistance",
+        failover: "mainTabPaneFailover",
+        logexporter: "mainTabPaneLogExporter",
+        nodata: "mainTabPaneNoData",
+        nxdomain: "mainTabPaneNxDomain",
+        nxdomainoverride: "mainTabPaneNxDomainOverride",
+        querylogsmysql: "mainTabPaneQueryLogsMySql",
+        querylogspostgresql: "mainTabPaneQueryLogsPostgreSql",
+        querylogssqlserver: "mainTabPaneQueryLogsSqlServer",
+        querylogssqlite: "mainTabPaneQueryLogsSqlite",
+        weightedroundrobin: "mainTabPaneWeightedRoundRobin",
+        whatismydns: "mainTabPaneWhatIsMyDns",
+        wildip: "mainTabPaneWildIp",
+        zonealias: "mainTabPaneZoneAlias",
+        appstore: "mainTabPaneAppStore"
     };
 
-    function initTabs() {
-        // Only wires the top-level nav-tabs (direct children of #content), not
-        // any app tab's own nested sub-tabs (e.g. Split Horizon's App
-        // Config/App Records, or Advanced Blocking's own Dashboard/Config),
-        // which use data-subtab and wire themselves up.
-        document.querySelectorAll("#content > .container > .nav-tabs a[data-tab]").forEach((link) => {
-            link.addEventListener("click", (e) => {
-                e.preventDefault();
-                switchTab(link.getAttribute("data-tab"));
-            });
+    function wireTabLink(link) {
+        link.addEventListener("click", (e) => {
+            e.preventDefault();
+            switchTab(link.getAttribute("data-tab"));
         });
     }
 
+    function initTabs() {
+        document.querySelectorAll("#content > .container > .nav-tabs a[data-tab]").forEach(wireTabLink);
+    }
+
     function switchTab(tab) {
-        // These queries are unscoped, so they also clear .active off any app
-        // tab's own nested sub-tab nav/panes (they reuse the same nav-tabs/
-        // tab-pane classes for styling). Those modules restore their own
-        // sub-tab state on the "tabchange" event fired below.
         document.querySelectorAll(".nav-tabs > li").forEach((li) => li.classList.remove("active"));
         document.querySelectorAll(".tab-content > .tab-pane").forEach((pane) => pane.classList.remove("active"));
 
@@ -131,11 +141,12 @@ window.apiFetch = (function () {
         document.dispatchEvent(new CustomEvent("tabchange", { detail: { tab } }));
     }
 
-    // ---- Advanced Blocking's own Dashboard/Config sub-tabs ----
-    // Mirrors Split Horizon's sub-tab pattern exactly (see splithorizon.js):
-    // scoped to abPane throughout, since switchTab() above is unscoped and
-    // will also strip .active off these nested elements - repaired below via
-    // the "tabchange" listener.
+    window.mainTabs = {
+        registerPane: (key, paneId) => { mainTabPaneIds[key] = paneId; },
+        unregisterPane: (key) => { delete mainTabPaneIds[key]; },
+        wireTabLink,
+        switchTab
+    };
 
     const abPane = document.getElementById("mainTabPaneAdvancedBlocking");
     let abCurrentSubTab = "dashboard";
@@ -165,9 +176,6 @@ window.apiFetch = (function () {
         if (e.detail.tab === "advancedblocking") switchAbSubTab(abCurrentSubTab);
     });
 
-    // Options menu mirrors the official console's #mnuUser dropdown: Bootstrap's
-    // dropdown-menu is pure CSS (display toggled by an "open" class on the parent),
-    // so this replicates the toggle behavior without needing bootstrap.min.js/jQuery.
     mnuOptionsToggle.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -178,16 +186,10 @@ window.apiFetch = (function () {
         mnuOptions.classList.remove("open");
     });
 
-    // Clicks inside the menu (Check for updates, theme options, etc.) must not
-    // bubble to the document listener above, or the menu closes before the
-    // user can see the result of their click.
     mnuOptions.querySelector(".dropdown-menu").addEventListener("click", (e) => {
         e.stopPropagation();
     });
 
-    // Theme handling mirrors Technitium's own console: a class on <body>
-    // (light-mode / dark-mode / amber-mode), persisted in localStorage under
-    // the same "theme" key, with a "system" default that follows prefers-color-scheme.
     function applyLightMode() {
         document.body.className = "light-mode";
     }
@@ -236,7 +238,7 @@ window.apiFetch = (function () {
         if (window.matchMedia) {
             window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
                 const currentTheme = localStorage.getItem("theme");
-                if (currentTheme) return; // explicit choice overrides system changes
+                if (currentTheme) return;
 
                 if (e.matches)
                     applyDarkMode();
@@ -246,7 +248,7 @@ window.apiFetch = (function () {
         }
 
         const currentTheme = localStorage.getItem("theme");
-        updateThemeSwitcherUI(currentTheme); // body class was already applied by the inline head script
+        updateThemeSwitcherUI(currentTheme);
 
         themeLinks().forEach((a) => {
             a.addEventListener("click", (e) => {
@@ -257,11 +259,6 @@ window.apiFetch = (function () {
         });
     }
 
-    // renderStatus() replaces the whole panel's innerHTML, which would wipe out
-    // an in-progress custom-duration edit (typed value, chosen unit, or even
-    // just having picked "Custom..." from the dropdown) every time the periodic
-    // poll below fires. Skip refreshing while that's happening; the next poll
-    // picks it back up once the user is done.
     function isDurationEditInProgress() {
         const active = document.activeElement;
         if (active && typeof active.closest === "function" && active.closest(".pause-duration, .custom-duration-value, .custom-duration-unit")) {
@@ -352,9 +349,6 @@ window.apiFetch = (function () {
             </span>`;
     }
 
-    // Shows/hides the custom value+unit inputs next to whichever .pause-duration
-    // select(s) exist under scopeEl (root's #rootActions or the whole groupsList,
-    // which can contain one per group row).
     function wireDurationControls(scopeEl) {
         scopeEl.querySelectorAll(".pause-duration").forEach((sel) => {
             sel.addEventListener("change", () => {
@@ -364,10 +358,6 @@ window.apiFetch = (function () {
         });
     }
 
-    // Reads the chosen duration (in minutes) from a .pause-duration select and,
-    // if "custom" is chosen, its adjacent value+unit inputs, all scoped under
-    // scopeEl. Returns null for "Indefinitely", a positive integer for a timed
-    // pause, or undefined if a custom duration was chosen but isn't valid.
     function readDurationMinutes(scopeEl) {
         const sel = scopeEl.querySelector(".pause-duration");
         if (!sel) return null;
@@ -557,7 +547,6 @@ window.apiFetch = (function () {
                     return;
                 }
             } catch {
-                // still restarting
             }
 
             if (attempts > 60) {
@@ -589,15 +578,9 @@ window.apiFetch = (function () {
 
     function remainingSeconds(resumeAtIso) {
         const resumeAt = new Date(resumeAtIso).getTime();
-        // floor (not round): with clock skew/latency between client and server,
-        // rounding can tip e.g. 300.6s up to "301" -> displays as 5:01 for a
-        // 5-minute pause. Floor guarantees it never overshoots the chosen duration.
         return Math.max(0, Math.floor((resumeAt - Date.now()) / 1000));
     }
 
-    // Countdown text ticks locally every second from the server-provided expiry
-    // timestamp; the actual auto-resume happens server-side regardless of
-    // whether this page is open, so this is purely cosmetic.
     function tickCountdowns() {
         document.querySelectorAll(".countdown").forEach((el) => {
             const remaining = remainingSeconds(el.getAttribute("data-resume-at"));
@@ -610,9 +593,6 @@ window.apiFetch = (function () {
     btnCheckUpdate.addEventListener("click", (e) => { e.preventDefault(); checkForUpdates(); });
     btnApplyUpdate.addEventListener("click", (e) => { e.preventDefault(); applyUpdate(); });
 
-    // If the very first load has no stored secret (or a stale one), the
-    // initial fetchStatus()/fetchVersion() calls below will 401 and the login
-    // overlay will show itself. Once the user unlocks it, retry those loads.
     document.addEventListener("authenticated", () => {
         fetchStatus();
         fetchVersion();

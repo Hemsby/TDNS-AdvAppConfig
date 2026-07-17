@@ -5,21 +5,18 @@
     const root = document.getElementById("splitHorizonConfigRoot");
     const recordsRoot = document.getElementById("splitHorizonRecordsRoot");
 
-    let config = null;      // working copy, mutated directly by the form
+    let config = null;
     let loaded = false;
     let dirty = false;
     let currentGroupIndex = -1;
     let currentSubTab = "apprecords";
 
-    // App Records state. Unlike App Config there's no batched "dirty" concept -
-    // each add/edit/delete is its own immediate server round-trip, matching
-    // Technitium's own zone records console.
     let records = [];
     let zones = [];
-    let defaultRecordTtl = 3600; // overwritten from the server's own Default TTL setting once loaded
+    let defaultRecordTtl = 3600;
     let recordsLoaded = false;
-    let editingIndex = -1;    // -1 = adding a new record
-    let editBuffer = null;    // { domain, zone, classPath, ttl, data }
+    let editingIndex = -1;
+    let editBuffer = null;
     let editOriginalDomain = null;
     let editOriginalZone = null;
 
@@ -30,13 +27,6 @@
             .replace(/>/g, "&gt;")
             .replace(/"/g, "&quot;");
     }
-
-    // ---- App Config / App Records sub-tabs ----
-    // Scoped to shPane throughout: app.js's top-level switchTab() also toggles
-    // .active on any element matching ".nav-tabs > li" / ".tab-content > .tab-pane"
-    // (unscoped, since it doesn't know about nested tab widgets), so this reuses
-    // those same classes for visual styling but must never touch the outer
-    // Dashboard/Config nav when switching sub-tabs here.
 
     function initSubTabs() {
         shPane.querySelectorAll(".nav-tabs a[data-subtab]").forEach((link) => {
@@ -60,8 +50,6 @@
         else if (subtab === "apprecords") onRecordsTabActivated();
     }
 
-    // ---- load/save ----
-
     function markDirty() {
         dirty = true;
         const badge = document.getElementById("shConfigDirtyBadge");
@@ -78,10 +66,6 @@
         return config.groups.map((g) => g.name);
     }
 
-    // The server may return a config document missing keys that were never
-    // saved (a fresh Split Horizon install, or one only using the APP record
-    // feature and never touching address translation). Default them so the
-    // form always has something to bind to.
     function normalizeConfig(raw) {
         return {
             appPreference: typeof raw.appPreference === "number" ? raw.appPreference : 40,
@@ -144,8 +128,6 @@
             return;
         }
 
-        // Pick up changes made outside this session, but don't clobber
-        // in-progress edits here.
         if (!dirty) load();
     }
 
@@ -159,19 +141,13 @@
     document.addEventListener("tabchange", (e) => {
         if (e.detail.tab !== "splithorizon") return;
 
-        // The outer switchTab() just cleared .active off our sub-tab nav/panes
-        // too (see note above); re-apply whichever sub-tab was showing.
         switchSubTab(currentSubTab);
     });
 
-    // If this tab was opened before the login overlay was unlocked, its
-    // initial load() 401'd. Retry once authenticated, same as the Config tab.
     document.addEventListener("authenticated", () => {
         if (loaded && !dirty) load();
         if (recordsLoaded) loadRecords();
     });
-
-    // ---- root layout ----
 
     function renderRoot() {
         root.innerHTML = `
@@ -208,7 +184,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading"><h3 class="panel-title">Named Networks</h3></div>
                     <div class="panel-body">
-                        <p class="text-muted">Reusable named collections of CIDR networks, referenced from APP records and the maps below.</p>
+                        <p class="text-muted">Reusable named collections of CIDR networks, referenced by name from APP records' rule data. (The Domain/Network Group Maps below always use literal CIDRs, never a named network.)</p>
                         <div id="shNetworksContainer"></div>
                         <button id="btnShAddNetwork" class="btn btn-default btn-sm"><span class="fa fa-plus"></span> Add Named Network</button>
                     </div>
@@ -264,8 +240,6 @@
         renderGroupsList();
     }
 
-    // ---- named networks (name -> array of CIDR strings) ----
-
     function renderNamedNetworks() {
         const container = document.getElementById("shNetworksContainer");
         const names = Object.keys(config.networks);
@@ -284,7 +258,7 @@
         </div>`).join("");
 
         names.forEach((name) => {
-            renderStringList(`shNetworkCidrs-${name}`, config.networks[name], "10.0.0.0/8 or 2001:db8::/32");
+            AppHelpers.renderStringList(`shNetworkCidrs-${name}`, config.networks[name], "10.0.0.0/8 or 2001:db8::/32", markDirty);
         });
 
         container.querySelectorAll(".network-name").forEach((inp) => {
@@ -305,13 +279,48 @@
                     return;
                 }
 
-                // Named networks are referenced by name from App Records' rule
-                // data, which lives in zone records outside this config document -
-                // there's no way to find and update those from here, so a rename
-                // silently breaks any existing rule that referenced the old name.
-                if (!(await uiConfirm(`Any App Record rules that reference "${oldName}" by name won't be updated automatically and will stop matching. Rename anyway?`))) {
+                let affected;
+                try {
+                    affected = await findRecordsReferencingNetwork(oldName);
+                } catch (err) {
+                    await uiAlert(`Couldn't check App Records for references to "${oldName}": ${err.message}. Rename cancelled.`);
                     inp.value = oldName;
                     return;
+                }
+
+                if (affected.length > 0) {
+                    const list = affected.map((r) => `${r.domain} (${r.zone})`).join(", ");
+                    if (!(await uiConfirm(`Renaming "${oldName}" to "${newName}" will also update ${affected.length} App Record(s) that reference it by name: ${list}. Continue?`))) {
+                        inp.value = oldName;
+                        return;
+                    }
+
+                    const failures = [];
+                    for (const rec of affected) {
+                        try {
+                            const res = await apiFetch("/api/splithorizon/records", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    domain: rec.domain,
+                                    zone: rec.zone,
+                                    classPath: rec.classPath,
+                                    ttl: rec.ttl,
+                                    data: renameDataKey(rec.data, oldName, newName)
+                                })
+                            });
+                            const resData = await res.json();
+                            if (!resData.success) failures.push(`${rec.domain}: ${resData.error || "unknown error"}`);
+                        } catch (err) {
+                            failures.push(`${rec.domain}: ${err.message}`);
+                        }
+                    }
+
+                    if (failures.length > 0) {
+                        await uiAlert(`Renamed the network, but failed to update ${failures.length} App Record(s) - fix these manually:\n${failures.join("\n")}`);
+                    }
+
+                    if (recordsLoaded) await loadRecords();
                 }
 
                 config.networks[newName] = config.networks[oldName];
@@ -322,12 +331,76 @@
         });
 
         container.querySelectorAll(".network-remove").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                delete config.networks[btn.getAttribute("data-name")];
+            btn.addEventListener("click", async () => {
+                const name = btn.getAttribute("data-name");
+
+                let affected;
+                try {
+                    affected = await findRecordsReferencingNetwork(name);
+                } catch (err) {
+                    await uiAlert(`Couldn't check App Records for references to "${name}": ${err.message}. Deletion cancelled.`);
+                    return;
+                }
+
+                if (affected.length > 0) {
+                    const list = affected.map((r) => `${r.domain} (${r.zone})`).join(", ");
+                    if (!(await uiConfirm(`Deleting "${name}" will also remove this rule from ${affected.length} App Record(s) that reference it: ${list}. Continue?`))) {
+                        return;
+                    }
+
+                    const failures = [];
+                    for (const rec of affected) {
+                        const updatedData = removeDataKey(rec.data, name);
+
+                        if (Object.keys(updatedData).length === 0) {
+                            failures.push(`${rec.domain}: would have no rules left - delete that record instead`);
+                            continue;
+                        }
+
+                        try {
+                            const res = await apiFetch("/api/splithorizon/records", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ domain: rec.domain, zone: rec.zone, classPath: rec.classPath, ttl: rec.ttl, data: updatedData })
+                            });
+                            const resData = await res.json();
+                            if (!resData.success) failures.push(`${rec.domain}: ${resData.error || "unknown error"}`);
+                        } catch (err) {
+                            failures.push(`${rec.domain}: ${err.message}`);
+                        }
+                    }
+
+                    if (failures.length > 0) {
+                        await uiAlert(`Deleted the network, but couldn't update ${failures.length} App Record(s) - fix these manually:\n${failures.join("\n")}`);
+                    }
+
+                    if (recordsLoaded) await loadRecords();
+                }
+
+                delete config.networks[name];
                 markDirty();
                 renderNamedNetworks();
             });
         });
+    }
+
+    async function findRecordsReferencingNetwork(name) {
+        const res = await apiFetch("/api/splithorizon/records");
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || "unknown error");
+        return (data.records || []).filter((r) => r.data && Object.prototype.hasOwnProperty.call(r.data, name));
+    }
+
+    function renameDataKey(data, oldKey, newKey) {
+        const result = {};
+        Object.keys(data).forEach((k) => { result[k === oldKey ? newKey : k] = data[k]; });
+        return result;
+    }
+
+    function removeDataKey(data, key) {
+        const result = {};
+        Object.keys(data).forEach((k) => { if (k !== key) result[k] = data[k]; });
+        return result;
     }
 
     async function addNamedNetwork() {
@@ -346,82 +419,12 @@
         renderNamedNetworks();
     }
 
-    // ---- group-name-valued map editors (domain map, network map) ----
-
-    function renderGroupMapTable(containerId, mapObj, keyLabel, keyPlaceholder) {
-        const container = document.getElementById(containerId);
-        const keys = Object.keys(mapObj);
-
-        if (keys.length === 0) {
-            container.innerHTML = '<p class="text-muted">No mappings configured.</p>';
-            return;
-        }
-
-        if (groupNames().length === 0) {
-            container.innerHTML = '<p class="text-danger">Create a translation group below before mapping to one.</p>';
-            return;
-        }
-
-        container.innerHTML = `<table class="table table-hover table-condensed">
-            <thead><tr><th>${escapeHtml(keyLabel)}</th><th>Group</th><th style="width:40px;"></th></tr></thead>
-            <tbody>
-                ${keys.map((key) => `<tr>
-                    <td><input type="text" class="form-control input-sm map-key" data-orig-key="${escapeHtml(key)}" value="${escapeHtml(key)}" placeholder="${escapeHtml(keyPlaceholder)}" /></td>
-                    <td><select class="form-control input-sm map-value" data-key="${escapeHtml(key)}">
-                        ${groupNames().map((g) => `<option value="${escapeHtml(g)}" ${g === mapObj[key] ? "selected" : ""}>${escapeHtml(g)}</option>`).join("")}
-                    </select></td>
-                    <td><button class="btn btn-danger btn-xs map-remove" data-key="${escapeHtml(key)}"><span class="fa fa-trash"></span></button></td>
-                </tr>`).join("")}
-            </tbody>
-        </table>`;
-
-        container.querySelectorAll(".map-value").forEach((sel) => {
-            sel.addEventListener("change", () => {
-                mapObj[sel.getAttribute("data-key")] = sel.value;
-                markDirty();
-            });
-        });
-
-        container.querySelectorAll(".map-remove").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                delete mapObj[btn.getAttribute("data-key")];
-                markDirty();
-                renderGroupMapTable(containerId, mapObj, keyLabel, keyPlaceholder);
-            });
-        });
-
-        container.querySelectorAll(".map-key").forEach((inp) => {
-            inp.addEventListener("blur", async () => {
-                const oldKey = inp.getAttribute("data-orig-key");
-                const newKey = inp.value.trim();
-
-                if (newKey === oldKey) return;
-
-                if (newKey === "") {
-                    inp.value = oldKey;
-                    return;
-                }
-
-                if (Object.prototype.hasOwnProperty.call(mapObj, newKey)) {
-                    await uiAlert(`A mapping for "${newKey}" already exists.`);
-                    inp.value = oldKey;
-                    return;
-                }
-
-                mapObj[newKey] = mapObj[oldKey];
-                delete mapObj[oldKey];
-                markDirty();
-                renderGroupMapTable(containerId, mapObj, keyLabel, keyPlaceholder);
-            });
-        });
-    }
-
     function renderDomainMap() {
-        renderGroupMapTable("shDomainMapContainer", config.domainGroupMap, "Domain", "example.com");
+        AppHelpers.renderGroupMapTable("shDomainMapContainer", config.domainGroupMap, "Domain", "example.com", groupNames, markDirty, "translation group");
     }
 
     function renderNetworkMap() {
-        renderGroupMapTable("shNetworkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24");
+        AppHelpers.renderGroupMapTable("shNetworkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "translation group");
     }
 
     async function addDomainMapping() {
@@ -459,47 +462,6 @@
         markDirty();
         renderNetworkMap();
     }
-
-    // ---- simple string list editor (named network CIDRs) ----
-
-    function renderStringList(containerId, arrayRef, placeholder) {
-        const container = document.getElementById(containerId);
-
-        container.innerHTML = `<table class="table table-condensed" style="margin-bottom:8px;">
-            <tbody>
-                ${arrayRef.map((val, i) => `<tr>
-                    <td><input type="text" class="form-control input-sm string-list-item" data-index="${i}" value="${escapeHtml(val)}" placeholder="${escapeHtml(placeholder)}" /></td>
-                    <td style="width:40px;"><button class="btn btn-danger btn-xs string-list-remove" data-index="${i}"><span class="fa fa-trash"></span></button></td>
-                </tr>`).join("")}
-            </tbody>
-        </table>
-        <button class="btn btn-default btn-xs string-list-add"><span class="fa fa-plus"></span> Add</button>`;
-
-        container.querySelectorAll(".string-list-item").forEach((inp) => {
-            inp.addEventListener("input", () => {
-                arrayRef[parseInt(inp.getAttribute("data-index"), 10)] = inp.value;
-                markDirty();
-            });
-        });
-
-        container.querySelectorAll(".string-list-remove").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                arrayRef.splice(parseInt(btn.getAttribute("data-index"), 10), 1);
-                markDirty();
-                renderStringList(containerId, arrayRef, placeholder);
-            });
-        });
-
-        container.querySelector(".string-list-add").addEventListener("click", () => {
-            arrayRef.push("");
-            markDirty();
-            renderStringList(containerId, arrayRef, placeholder);
-            const inputs = container.querySelectorAll(".string-list-item");
-            if (inputs.length) inputs[inputs.length - 1].focus();
-        });
-    }
-
-    // ---- free-text key/value map editor (externalToInternalTranslation) ----
 
     function renderTranslationMap(containerId, mapObj) {
         const container = document.getElementById(containerId);
@@ -579,8 +541,6 @@
         });
     }
 
-    // ---- groups list ----
-
     function renderGroupsList() {
         const container = document.getElementById("shGroupsContainer");
 
@@ -612,7 +572,21 @@
                 const idx = parseInt(btn.getAttribute("data-index"), 10);
                 const g = config.groups[idx];
 
-                if (!(await uiConfirm(`Delete group "${g.name}"? Any domain/network mappings pointing to it will be left dangling.`))) return;
+                const domainKeys = Object.keys(config.domainGroupMap).filter((k) => config.domainGroupMap[k] === g.name);
+                const networkKeys = Object.keys(config.networkGroupMap).filter((k) => config.networkGroupMap[k] === g.name);
+
+                let msg = `Delete group "${g.name}"?`;
+                if (domainKeys.length > 0 || networkKeys.length > 0) {
+                    const parts = [];
+                    if (domainKeys.length > 0) parts.push(`${domainKeys.length} domain mapping(s) (${domainKeys.join(", ")})`);
+                    if (networkKeys.length > 0) parts.push(`${networkKeys.length} network mapping(s) (${networkKeys.join(", ")})`);
+                    msg = `Delete group "${g.name}"? This will also remove ${parts.join(" and ")} that point to it.`;
+                }
+
+                if (!(await uiConfirm(msg))) return;
+
+                domainKeys.forEach((k) => delete config.domainGroupMap[k]);
+                networkKeys.forEach((k) => delete config.networkGroupMap[k]);
 
                 config.groups.splice(idx, 1);
                 markDirty();
@@ -646,8 +620,6 @@
         renderDomainMap();
         renderNetworkMap();
     }
-
-    // ---- group editor ----
 
     function openGroupEditor(index) {
         currentGroupIndex = index;
@@ -732,8 +704,6 @@
         renderTranslationMap("shGrpTranslations", g.externalToInternalTranslation);
     }
 
-    // ---- App Records (Split Horizon APP zone records) ----
-
     function onRecordsTabActivated() {
         if (!recordsLoaded) {
             recordsLoaded = true;
@@ -784,7 +754,7 @@
 
         document.getElementById("btnShAddRecord").addEventListener("click", async () => {
             if (zones.length === 0) {
-                await uiAlert("No writable primary zones were found on the DNS server. Create a zone first.");
+                await uiAlert("No writable primary or forwarder zones were found on the DNS server. Create a zone first.");
                 return;
             }
             openRecordEditor(-1);
@@ -845,13 +815,6 @@
         });
     }
 
-    // ---- record editor ----
-
-    // The record's real identity is always the full domain name, but typing
-    // that out (and having to make it match whatever zone is selected above,
-    // or getting a confusing "not part of this domain" error) is exactly the
-    // kind of thing this tool exists to hide. The editor instead asks for a
-    // name relative to the selected zone and derives the full domain from it.
     function relativeNameFor(domain, zone) {
         if (domain === zone) return "";
 
@@ -859,7 +822,7 @@
         if (domain.length > suffix.length && domain.toLowerCase().endsWith(suffix.toLowerCase()))
             return domain.slice(0, domain.length - suffix.length);
 
-        return domain; // doesn't belong to this zone - shouldn't normally happen
+        return domain;
     }
 
     function openRecordEditor(index) {
@@ -1027,18 +990,8 @@
             renderRecordAddressData();
     }
 
-    // "Network key" (a raw CIDR like 10.0.0.0/24, or the keywords "public"/
-    // "private") is exactly the jargon this tool exists to hide. The picker
-    // below only asks for a CIDR when someone explicitly chooses "advanced" -
-    // every other path (local/internet/named network/single device) needs no
-    // networking knowledge at all.
+    let namedNetworkNames = [];
 
-    let namedNetworkNames = []; // cached App Config named networks, refreshed each time the record editor opens
-
-    // Reads App Config's named networks independently of the App Config tab's
-    // own load state - the record editor may be opened before that tab has
-    // ever been visited, so `config` (the App Config module's own variable)
-    // can't be relied on here.
     async function fetchNamedNetworkNames() {
         if (config && config.networks) return Object.keys(config.networks);
 
@@ -1048,8 +1001,6 @@
             if (data.success && data.config && data.config.networks && typeof data.config.networks === "object")
                 return Object.keys(data.config.networks);
         } catch {
-            // App Config may be unreachable/unconfigured - the picker still
-            // works fine with just local/internet/device/advanced.
         }
 
         return [];
@@ -1058,7 +1009,7 @@
     function networkKeyLabel(key) {
         if (key === "private") return "Private (RFC 1918)";
         if (key === "public") return "Public";
-        return key; // named network name or a raw CIDR/IP - self-explanatory
+        return key;
     }
 
     async function initAddEntryForm() {
@@ -1121,9 +1072,6 @@
             return;
         }
 
-        // Seed one empty slot immediately (an empty string for the redirect
-        // case, "" is already the default) so the IP/domain input is visible
-        // right away rather than behind yet another "+ Add" click.
         editBuffer.data[key] = editBuffer.classPath === "SplitHorizon.SimpleCNAME" ? "" : [""];
 
         document.getElementById("shRecAddEntryForm").style.display = "none";
@@ -1134,17 +1082,6 @@
         renderRecordDataEditor();
     }
 
-    // ---- Address (A/AAAA) data editor: network key -> array of IPs ----
-
-    // Split into "checked in order" vs "fallback" because that's what the
-    // real Split Horizon app source does (SimpleAddress.cs/SimpleCNAME.cs):
-    // "public"/"private" are explicitly skipped during the main match loop
-    // and only ever consulted afterward, as a fallback - their position
-    // relative to other rules has zero effect on matching. Only the specific
-    // rules (named network / device / advanced) are order-sensitive, and
-    // among those, a named-network match short-circuits the search entirely
-    // (it does NOT keep looking for a more specific CIDR after it), so a
-    // reorderable, numbered list is the only honest way to present this.
     function splitRuleKeys(data) {
         const keys = Object.keys(data);
         return {
@@ -1231,10 +1168,6 @@
         });
     }
 
-    // Same shape as the App Config tab's renderStringList, but without
-    // markDirty() calls - App Records has no batched-document dirty concept,
-    // and calling the App Config tab's markDirty() from here would incorrectly
-    // flag the *other* sub-tab as having unsaved changes.
     function renderRecordAddressList(containerId, arrayRef, placeholder) {
         const container = document.getElementById(containerId);
 
@@ -1268,8 +1201,6 @@
             if (inputs.length) inputs[inputs.length - 1].focus();
         });
     }
-
-    // ---- CNAME data editor: network key -> single target domain ----
 
     function renderRecordCnameData() {
         const container = document.getElementById("shRecDataContainer");
@@ -1334,8 +1265,6 @@
         });
     }
 
-    // ---- save ----
-
     async function saveRecord() {
         const domain = editBuffer.domain.trim();
         if (!domain) { await uiAlert("Domain is required."); return; }
@@ -1346,9 +1275,6 @@
         saveBtn.disabled = true;
 
         try {
-            // Add's overwrite=true only replaces the record already at `domain` -
-            // if editing moved the record to a different domain/zone, the old
-            // one has to be removed separately or it's left behind as a stray.
             const isRename = editingIndex !== -1 && (domain !== editOriginalDomain || editBuffer.zone !== editOriginalZone);
 
             if (isRename) {

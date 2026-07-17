@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
 
-    <title>Advanced Blocking Control</title>
+    <title>Advanced App Configuration</title>
 
     <link rel="icon" href="favicon.ico" />
 
@@ -18,8 +18,39 @@
 
     <script src="js/ui.js" defer></script>
     <script src="js/app.js" defer></script>
+    <script src="js/apphelpers.js" defer></script>
+    <script src="js/dashboard.js" defer></script>
     <script src="js/config.js" defer></script>
+    <script src="js/advancedforwarding.js" defer></script>
     <script src="js/splithorizon.js" defer></script>
+    <script src="js/blockpage.js" defer></script>
+    <script src="js/defaultrecords.js" defer></script>
+    <script src="js/dnsblocklist.js" defer></script>
+    <script src="js/dnsrebindingprotection.js" defer></script>
+    <script src="js/autoptr.js" defer></script>
+    <script src="js/dns64.js" defer></script>
+    <script src="js/droprequests.js" defer></script>
+    <script src="js/filteraaaa.js" defer></script>
+    <script src="js/geogroupapp.js" defer></script>
+    <script src="js/geocontinent.js" defer></script>
+    <script src="js/geocountry.js" defer></script>
+    <script src="js/geodistance.js" defer></script>
+    <script src="js/failover.js" defer></script>
+    <script src="js/logexporter.js" defer></script>
+    <script src="js/nodata.js" defer></script>
+    <script src="js/nxdomain.js" defer></script>
+    <script src="js/nxdomainoverride.js" defer></script>
+    <script src="js/querylogssqlapp.js" defer></script>
+    <script src="js/querylogsmysql.js" defer></script>
+    <script src="js/querylogspostgresql.js" defer></script>
+    <script src="js/querylogssqlserver.js" defer></script>
+    <script src="js/querylogssqlite.js" defer></script>
+    <script src="js/weightedroundrobin.js" defer></script>
+    <script src="js/whatismydns.js" defer></script>
+    <script src="js/wildip.js" defer></script>
+    <script src="js/zonealias.js" defer></script>
+    <script src="js/appstore.js" defer></script>
+    <script src="js/apptabs.js" defer></script>
 </head>
 <body>
     <script>
@@ -46,7 +77,7 @@
             <span class="text">Technitium</span>
         </div>
 
-        <div class="subtitle">Advanced Blocking Companion</div>
+        <div class="subtitle">Advanced App Configuration</div>
 
         <div id="mnuOptions" class="menu dropdown">
             <a href="#" class="dropdown-toggle" id="mnuOptionsToggle" role="button" style="text-decoration: none;">
@@ -76,12 +107,40 @@
             <ul class="nav nav-tabs" role="tablist">
                 <li id="mainTabListDashboard" role="presentation" class="active"><a href="#mainTabPaneDashboard" data-tab="dashboard">Dashboard</a></li>
                 <li id="mainTabListAdvancedBlocking" role="presentation"><a href="#mainTabPaneAdvancedBlocking" data-tab="advancedblocking">Advanced Blocking</a></li>
+                <li id="mainTabListAdvancedForwarding" role="presentation"><a href="#mainTabPaneAdvancedForwarding" data-tab="advancedforwarding">Advanced Forwarding</a></li>
                 <li id="mainTabListSplitHorizon" role="presentation"><a href="#mainTabPaneSplitHorizon" data-tab="splithorizon">Split Horizon</a></li>
+                <li id="mainTabListBlockPage" role="presentation"><a href="#mainTabPaneBlockPage" data-tab="blockpage">Block Page</a></li>
+                <li id="mainTabListDefaultRecords" role="presentation"><a href="#mainTabPaneDefaultRecords" data-tab="defaultrecords">Default Records</a></li>
+                <li id="mainTabListDnsBlockList" role="presentation"><a href="#mainTabPaneDnsBlockList" data-tab="dnsblocklist">DNS Block List (DNSBL)</a></li>
+                <li id="mainTabListDnsRebindingProtection" role="presentation"><a href="#mainTabPaneDnsRebindingProtection" data-tab="dnsrebindingprotection">DNS Rebinding Protection</a></li>
+                <li id="mainTabListAutoPtr" role="presentation"><a href="#mainTabPaneAutoPtr" data-tab="autoptr">Auto PTR</a></li>
+                <li id="mainTabListDns64" role="presentation"><a href="#mainTabPaneDns64" data-tab="dns64">DNS64</a></li>
+                <li id="mainTabListDropRequests" role="presentation"><a href="#mainTabPaneDropRequests" data-tab="droprequests">Drop Requests</a></li>
+                <li id="mainTabListFilterAaaa" role="presentation"><a href="#mainTabPaneFilterAaaa" data-tab="filteraaaa">Filter AAAA</a></li>
+                <li id="mainTabListGeoContinent" role="presentation"><a href="#mainTabPaneGeoContinent" data-tab="geocontinent">Geo Continent</a></li>
+                <li id="mainTabListGeoCountry" role="presentation"><a href="#mainTabPaneGeoCountry" data-tab="geocountry">Geo Country</a></li>
+                <li id="mainTabListGeoDistance" role="presentation"><a href="#mainTabPaneGeoDistance" data-tab="geodistance">Geo Distance</a></li>
+                <li id="mainTabListFailover" role="presentation"><a href="#mainTabPaneFailover" data-tab="failover">Failover</a></li>
+                <li id="mainTabListLogExporter" role="presentation"><a href="#mainTabPaneLogExporter" data-tab="logexporter">Log Exporter</a></li>
+                <li id="mainTabListNoData" role="presentation"><a href="#mainTabPaneNoData" data-tab="nodata">NO DATA</a></li>
+                <li id="mainTabListNxDomain" role="presentation"><a href="#mainTabPaneNxDomain" data-tab="nxdomain">NX Domain</a></li>
+                <li id="mainTabListNxDomainOverride" role="presentation"><a href="#mainTabPaneNxDomainOverride" data-tab="nxdomainoverride">NX Domain Override</a></li>
+                <li id="mainTabListQueryLogsMySql" role="presentation"><a href="#mainTabPaneQueryLogsMySql" data-tab="querylogsmysql">Query Logs (MySQL)</a></li>
+                <li id="mainTabListQueryLogsPostgreSql" role="presentation"><a href="#mainTabPaneQueryLogsPostgreSql" data-tab="querylogspostgresql">Query Logs (PostgreSQL)</a></li>
+                <li id="mainTabListQueryLogsSqlServer" role="presentation"><a href="#mainTabPaneQueryLogsSqlServer" data-tab="querylogssqlserver">Query Logs (SQL Server)</a></li>
+                <li id="mainTabListQueryLogsSqlite" role="presentation"><a href="#mainTabPaneQueryLogsSqlite" data-tab="querylogssqlite">Query Logs (Sqlite)</a></li>
+                <li id="mainTabListWeightedRoundRobin" role="presentation"><a href="#mainTabPaneWeightedRoundRobin" data-tab="weightedroundrobin">Weighted Round Robin</a></li>
+                <li id="mainTabListWhatIsMyDns" role="presentation"><a href="#mainTabPaneWhatIsMyDns" data-tab="whatismydns">What Is My Dns</a></li>
+                <li id="mainTabListWildIp" role="presentation"><a href="#mainTabPaneWildIp" data-tab="wildip">Wild IP</a></li>
+                <li id="mainTabListZoneAlias" role="presentation"><a href="#mainTabPaneZoneAlias" data-tab="zonealias">Zone Alias</a></li>
+                <li id="mainTabListAppStore" role="presentation"><a href="#mainTabPaneAppStore" data-tab="appstore">App Store</a></li>
             </ul>
 
             <div class="tab-content">
                 <div id="mainTabPaneDashboard" class="tab-pane active" style="padding-top: 15px;">
-                    <p class="text-muted">Coming soon.</p>
+                    <div id="dashboardAppTogglesRoot">
+                        <p>Loading&hellip;</p>
+                    </div>
                 </div>
 
                 <div id="mainTabPaneAdvancedBlocking" class="tab-pane" style="padding-top: 15px;">
@@ -119,6 +178,20 @@
                     </div>
                 </div>
 
+                <div id="mainTabPaneAdvancedForwarding" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="afTabListConfig" role="presentation" class="active"><a href="#afTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="afTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="advancedForwardingConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="mainTabPaneSplitHorizon" class="tab-pane" style="padding-top: 15px;">
                     <ul class="nav nav-tabs" role="tablist">
                         <li id="shTabListAppRecords" role="presentation" class="active"><a href="#shTabPaneAppRecords" data-subtab="apprecords">Records</a></li>
@@ -139,13 +212,452 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="mainTabPaneBlockPage" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="bpTabListConfig" role="presentation" class="active"><a href="#bpTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="bpTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="blockPageConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneDefaultRecords" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="drTabListConfig" role="presentation" class="active"><a href="#drTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="drTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="defaultRecordsConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneDnsBlockList" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="dnsblTabListRecords" role="presentation" class="active"><a href="#dnsblTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="dnsblTabListConfig" role="presentation"><a href="#dnsblTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="dnsblTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="dnsBlockListRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="dnsblTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div id="dnsBlockListConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneDnsRebindingProtection" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="drpTabListConfig" role="presentation" class="active"><a href="#drpTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="drpTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="dnsRebindingProtectionConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneAutoPtr" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="apTabListRecords" role="presentation" class="active"><a href="#apTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="apTabListConfig" role="presentation"><a href="#apTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="apTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="autoPtrRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="apTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <p class="text-muted">This app has no configuration of its own - behavior is controlled entirely by the APP records you add on the Records tab.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneDns64" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="dns64TabListConfig" role="presentation" class="active"><a href="#dns64TabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="dns64TabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="dns64ConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneDropRequests" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="dreqTabListConfig" role="presentation" class="active"><a href="#dreqTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="dreqTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="dropRequestsConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneFilterAaaa" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="faaTabListConfig" role="presentation" class="active"><a href="#faaTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="faaTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="filterAaaaConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneGeoContinent" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="gcnTabListRecords" role="presentation" class="active"><a href="#gcnTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="gcnTabListConfig" role="presentation"><a href="#gcnTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="gcnTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="gcnRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="gcnTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div id="gcnConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneGeoCountry" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="gcoTabListRecords" role="presentation" class="active"><a href="#gcoTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="gcoTabListConfig" role="presentation"><a href="#gcoTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="gcoTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="gcoRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="gcoTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div id="gcoConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneGeoDistance" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="gdsTabListRecords" role="presentation" class="active"><a href="#gdsTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="gdsTabListConfig" role="presentation"><a href="#gdsTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="gdsTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="gdsRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="gdsTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <p class="text-muted">This app has no configuration of its own - behavior is controlled entirely by the APP records you add on the Records tab.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneFailover" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="foTabListRecords" role="presentation" class="active"><a href="#foTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="foTabListConfig" role="presentation"><a href="#foTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="foTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="foRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="foTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div id="foConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneLogExporter" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="lgeTabListConfig" role="presentation" class="active"><a href="#lgeTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="lgeTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="logExporterConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneNoData" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="ndTabListRecords" role="presentation" class="active"><a href="#ndTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="ndTabListConfig" role="presentation"><a href="#ndTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="ndTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="noDataRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="ndTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <p class="text-muted">This app has no configuration of its own - behavior is controlled entirely by the APP records you add on the Records tab.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneNxDomain" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="nxdTabListConfig" role="presentation" class="active"><a href="#nxdTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="nxdTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="nxDomainConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneNxDomainOverride" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="nxoTabListConfig" role="presentation" class="active"><a href="#nxoTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="nxoTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="nxDomainOverrideConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneQueryLogsMySql" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="qlmTabListConfig" role="presentation" class="active"><a href="#qlmTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="qlmTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="qlmConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneQueryLogsPostgreSql" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="qlpTabListConfig" role="presentation" class="active"><a href="#qlpTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="qlpTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="qlpConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneQueryLogsSqlServer" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="qlsTabListConfig" role="presentation" class="active"><a href="#qlsTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="qlsTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="qlsConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneQueryLogsSqlite" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="qltTabListConfig" role="presentation" class="active"><a href="#qltTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="qltTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="qltConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneWeightedRoundRobin" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="wrrTabListRecords" role="presentation" class="active"><a href="#wrrTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="wrrTabListConfig" role="presentation"><a href="#wrrTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="wrrTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="weightedRoundRobinRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="wrrTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <p class="text-muted">This app has no configuration of its own - behavior is controlled entirely by the APP records you add on the Records tab.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneWhatIsMyDns" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="wimdTabListRecords" role="presentation" class="active"><a href="#wimdTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="wimdTabListConfig" role="presentation"><a href="#wimdTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="wimdTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="whatIsMyDnsRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="wimdTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <p class="text-muted">This app has no configuration and no per-record data - simply add an APP record at the desired name and it will answer A/AAAA/TXT queries there with the querying client's own IP address.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneWildIp" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="wiTabListRecords" role="presentation" class="active"><a href="#wiTabPaneRecords" data-subtab="records">Records</a></li>
+                        <li id="wiTabListConfig" role="presentation"><a href="#wiTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="wiTabPaneRecords" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="wildIpRecordsRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="wiTabPaneConfig" class="tab-pane" style="padding-top: 15px;">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <p class="text-muted">This app has no configuration of its own - behavior is controlled entirely by the APP records you add on the Records tab.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneZoneAlias" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="zaTabListConfig" role="presentation" class="active"><a href="#zaTabPaneConfig" data-subtab="config">Config</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="zaTabPaneConfig" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="zoneAliasConfigRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mainTabPaneAppStore" class="tab-pane" style="padding-top: 15px;">
+                    <ul class="nav nav-tabs" role="tablist">
+                        <li id="asTabListInstalled" role="presentation" class="active"><a href="#asTabPaneInstalled" data-subtab="installed">Installed</a></li>
+                        <li id="asTabListAvailable" role="presentation"><a href="#asTabPaneAvailable" data-subtab="available">Available</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="asTabPaneInstalled" class="tab-pane active" style="padding-top: 15px;">
+                            <div id="appStoreInstalledRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+
+                        <div id="asTabPaneAvailable" class="tab-pane" style="padding-top: 15px;">
+                            <div id="appStoreAvailableRoot">
+                                <p>Loading&hellip;</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="footer">
         <div class="content">
-            <a href="https://technitium.com/dns/" target="_blank" rel="noopener">Technitium DNS Server</a> Advanced Blocking companion
+            <a href="https://technitium.com/dns/" target="_blank" rel="noopener">Technitium DNS Server</a> Advanced App Configuration
         </div>
     </div>
 

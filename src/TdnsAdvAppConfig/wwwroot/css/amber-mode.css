@@ -342,3 +342,7 @@ body.amber-mode {
 .amber-mode .label-success {
     background-color: #357935;
 }
+
+.amber-mode .toggle-switch input:checked + .toggle-slider {
+    background-color: #357935;
+}

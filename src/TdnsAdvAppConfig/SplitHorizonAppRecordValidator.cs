@@ -3,12 +3,6 @@ using System.Text.Json.Nodes;
 
 namespace TdnsAdvAppConfig;
 
-// Structural/type validation for an add-or-overwrite APP record request,
-// applied before POST /api/splithorizon/records forwards it to the real DNS
-// server. Mirrors the other validators in this project: catches structural
-// mistakes, not a full mirror of SplitHorizonApp's own record-data parser
-// (e.g. it doesn't validate that a network key is a real CIDR or that an
-// address string is a real IP).
 public static class SplitHorizonAppRecordValidator
 {
     private static readonly string[] ValidClassPaths = ["SplitHorizon.SimpleAddress", "SplitHorizon.SimpleCNAME"];
