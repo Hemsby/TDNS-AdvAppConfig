@@ -6,7 +6,6 @@ public static class DashboardAppToggles
 {
     public static readonly IReadOnlyList<AppToggleInfo> All =
     [
-        new("splithorizon", TechnitiumClient.SplitHorizonAppName, "Split Horizon", "enableAddressTranslation", false),
         new("advancedforwarding", TechnitiumClient.AdvancedForwardingAppName, "Advanced Forwarding", "enableForwarding", true),
         new("defaultrecords", TechnitiumClient.DefaultRecordsAppName, "Default Records", "enableDefaultRecords", false),
         new("dnsrebindingprotection", TechnitiumClient.DnsRebindingProtectionAppName, "DNS Rebinding Protection", "enableProtection", true),

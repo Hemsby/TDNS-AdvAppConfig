@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Dashboard no longer shows Split Horizon as "Disabled" when its actual split-horizon answering is working fine - the toggle it was reading only controls a separate, optional Address Translation feature, not whether Split Horizon itself is active. Removed Split Horizon from the Dashboard's toggle list; its own tab still has the Address Translation setting under its real name.
+
 ## [2.0.0] - 2026-07-17
 
 ### Added
