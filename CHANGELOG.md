@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-07-19
+
+### Fixed
+
+- App tabs no longer flash all 27 entries on page load before settling on just the installed ones - a loading indicator shows until the real list is known.
+- Applying a self-update now shows a persistent "Updating…" overlay through the restart and reload, instead of the screen appearing frozen for several seconds with no feedback.
+
 ## [2.0.1] - 2026-07-17
 
 ### Fixed
