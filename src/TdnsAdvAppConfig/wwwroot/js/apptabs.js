@@ -35,6 +35,7 @@
     const tabContent = document.querySelector("#content > .container > .tab-content");
     const appStoreTabListEl = document.getElementById("mainTabListAppStore");
     const appStorePaneEl = document.getElementById("mainTabPaneAppStore");
+    const loadingTabListEl = document.getElementById("mainTabListLoadingApps");
 
     const dynamicTabs = new Map();
 
@@ -60,6 +61,8 @@
         } catch {
             return;
         }
+
+        if (loadingTabListEl) loadingTabListEl.style.display = "none";
 
         const installedNames = new Set(apps.map((a) => a.name));
 

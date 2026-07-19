@@ -83,6 +83,8 @@ window.apiFetch = (function () {
     const updateStatus = document.getElementById("updateStatus");
     const liUpdateStatus = document.getElementById("liUpdateStatus");
     const liApplyUpdate = document.getElementById("liApplyUpdate");
+    const updateOverlay = document.getElementById("updateOverlay");
+    const updateOverlayStatus = document.getElementById("updateOverlayStatus");
     const mnuOptions = document.getElementById("mnuOptions");
     const mnuOptionsToggle = document.getElementById("mnuOptionsToggle");
 
@@ -518,20 +520,28 @@ window.apiFetch = (function () {
 
         liApplyUpdate.style.display = "none";
         updateStatus.textContent = "Updating…";
+        updateOverlayStatus.textContent = "Updating…";
+        updateOverlay.classList.add("visible");
 
         try {
             const res = await apiFetch("/api/updates/apply", { method: "POST" });
             const data = await res.json();
 
             if (!data.success) {
-                updateStatus.textContent = data.message || data.error || "Update could not be applied.";
+                const message = data.message || data.error || "Update could not be applied.";
+                updateStatus.textContent = message;
+                updateOverlay.classList.remove("visible");
+                await uiAlert(message);
                 return;
             }
 
             updateStatus.textContent = "Restarting…";
+            updateOverlayStatus.textContent = "Restarting…";
             pollHealth();
         } catch (err) {
             updateStatus.textContent = "Update failed: " + err.message;
+            updateOverlay.classList.remove("visible");
+            await uiAlert("Update failed: " + err.message);
         }
     }
 
@@ -552,6 +562,7 @@ window.apiFetch = (function () {
             if (attempts > 60) {
                 clearInterval(interval);
                 updateStatus.textContent = "Still restarting… refresh manually once it's back.";
+                updateOverlayStatus.textContent = "Still restarting… refresh manually once it's back.";
             }
         }, 2000);
     }

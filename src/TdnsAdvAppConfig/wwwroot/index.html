@@ -106,33 +106,34 @@
 
             <ul class="nav nav-tabs" role="tablist">
                 <li id="mainTabListDashboard" role="presentation" class="active"><a href="#mainTabPaneDashboard" data-tab="dashboard">Dashboard</a></li>
-                <li id="mainTabListAdvancedBlocking" role="presentation"><a href="#mainTabPaneAdvancedBlocking" data-tab="advancedblocking">Advanced Blocking</a></li>
-                <li id="mainTabListAdvancedForwarding" role="presentation"><a href="#mainTabPaneAdvancedForwarding" data-tab="advancedforwarding">Advanced Forwarding</a></li>
-                <li id="mainTabListSplitHorizon" role="presentation"><a href="#mainTabPaneSplitHorizon" data-tab="splithorizon">Split Horizon</a></li>
-                <li id="mainTabListBlockPage" role="presentation"><a href="#mainTabPaneBlockPage" data-tab="blockpage">Block Page</a></li>
-                <li id="mainTabListDefaultRecords" role="presentation"><a href="#mainTabPaneDefaultRecords" data-tab="defaultrecords">Default Records</a></li>
-                <li id="mainTabListDnsBlockList" role="presentation"><a href="#mainTabPaneDnsBlockList" data-tab="dnsblocklist">DNS Block List (DNSBL)</a></li>
-                <li id="mainTabListDnsRebindingProtection" role="presentation"><a href="#mainTabPaneDnsRebindingProtection" data-tab="dnsrebindingprotection">DNS Rebinding Protection</a></li>
-                <li id="mainTabListAutoPtr" role="presentation"><a href="#mainTabPaneAutoPtr" data-tab="autoptr">Auto PTR</a></li>
-                <li id="mainTabListDns64" role="presentation"><a href="#mainTabPaneDns64" data-tab="dns64">DNS64</a></li>
-                <li id="mainTabListDropRequests" role="presentation"><a href="#mainTabPaneDropRequests" data-tab="droprequests">Drop Requests</a></li>
-                <li id="mainTabListFilterAaaa" role="presentation"><a href="#mainTabPaneFilterAaaa" data-tab="filteraaaa">Filter AAAA</a></li>
-                <li id="mainTabListGeoContinent" role="presentation"><a href="#mainTabPaneGeoContinent" data-tab="geocontinent">Geo Continent</a></li>
-                <li id="mainTabListGeoCountry" role="presentation"><a href="#mainTabPaneGeoCountry" data-tab="geocountry">Geo Country</a></li>
-                <li id="mainTabListGeoDistance" role="presentation"><a href="#mainTabPaneGeoDistance" data-tab="geodistance">Geo Distance</a></li>
-                <li id="mainTabListFailover" role="presentation"><a href="#mainTabPaneFailover" data-tab="failover">Failover</a></li>
-                <li id="mainTabListLogExporter" role="presentation"><a href="#mainTabPaneLogExporter" data-tab="logexporter">Log Exporter</a></li>
-                <li id="mainTabListNoData" role="presentation"><a href="#mainTabPaneNoData" data-tab="nodata">NO DATA</a></li>
-                <li id="mainTabListNxDomain" role="presentation"><a href="#mainTabPaneNxDomain" data-tab="nxdomain">NX Domain</a></li>
-                <li id="mainTabListNxDomainOverride" role="presentation"><a href="#mainTabPaneNxDomainOverride" data-tab="nxdomainoverride">NX Domain Override</a></li>
-                <li id="mainTabListQueryLogsMySql" role="presentation"><a href="#mainTabPaneQueryLogsMySql" data-tab="querylogsmysql">Query Logs (MySQL)</a></li>
-                <li id="mainTabListQueryLogsPostgreSql" role="presentation"><a href="#mainTabPaneQueryLogsPostgreSql" data-tab="querylogspostgresql">Query Logs (PostgreSQL)</a></li>
-                <li id="mainTabListQueryLogsSqlServer" role="presentation"><a href="#mainTabPaneQueryLogsSqlServer" data-tab="querylogssqlserver">Query Logs (SQL Server)</a></li>
-                <li id="mainTabListQueryLogsSqlite" role="presentation"><a href="#mainTabPaneQueryLogsSqlite" data-tab="querylogssqlite">Query Logs (Sqlite)</a></li>
-                <li id="mainTabListWeightedRoundRobin" role="presentation"><a href="#mainTabPaneWeightedRoundRobin" data-tab="weightedroundrobin">Weighted Round Robin</a></li>
-                <li id="mainTabListWhatIsMyDns" role="presentation"><a href="#mainTabPaneWhatIsMyDns" data-tab="whatismydns">What Is My Dns</a></li>
-                <li id="mainTabListWildIp" role="presentation"><a href="#mainTabPaneWildIp" data-tab="wildip">Wild IP</a></li>
-                <li id="mainTabListZoneAlias" role="presentation"><a href="#mainTabPaneZoneAlias" data-tab="zonealias">Zone Alias</a></li>
+                <li id="mainTabListLoadingApps" role="presentation" class="disabled"><a href="#" tabindex="-1"><span class="fa fa-spinner fa-spin"></span> Loading apps&hellip;</a></li>
+                <li id="mainTabListAdvancedBlocking" role="presentation" style="display:none;"><a href="#mainTabPaneAdvancedBlocking" data-tab="advancedblocking">Advanced Blocking</a></li>
+                <li id="mainTabListAdvancedForwarding" role="presentation" style="display:none;"><a href="#mainTabPaneAdvancedForwarding" data-tab="advancedforwarding">Advanced Forwarding</a></li>
+                <li id="mainTabListSplitHorizon" role="presentation" style="display:none;"><a href="#mainTabPaneSplitHorizon" data-tab="splithorizon">Split Horizon</a></li>
+                <li id="mainTabListBlockPage" role="presentation" style="display:none;"><a href="#mainTabPaneBlockPage" data-tab="blockpage">Block Page</a></li>
+                <li id="mainTabListDefaultRecords" role="presentation" style="display:none;"><a href="#mainTabPaneDefaultRecords" data-tab="defaultrecords">Default Records</a></li>
+                <li id="mainTabListDnsBlockList" role="presentation" style="display:none;"><a href="#mainTabPaneDnsBlockList" data-tab="dnsblocklist">DNS Block List (DNSBL)</a></li>
+                <li id="mainTabListDnsRebindingProtection" role="presentation" style="display:none;"><a href="#mainTabPaneDnsRebindingProtection" data-tab="dnsrebindingprotection">DNS Rebinding Protection</a></li>
+                <li id="mainTabListAutoPtr" role="presentation" style="display:none;"><a href="#mainTabPaneAutoPtr" data-tab="autoptr">Auto PTR</a></li>
+                <li id="mainTabListDns64" role="presentation" style="display:none;"><a href="#mainTabPaneDns64" data-tab="dns64">DNS64</a></li>
+                <li id="mainTabListDropRequests" role="presentation" style="display:none;"><a href="#mainTabPaneDropRequests" data-tab="droprequests">Drop Requests</a></li>
+                <li id="mainTabListFilterAaaa" role="presentation" style="display:none;"><a href="#mainTabPaneFilterAaaa" data-tab="filteraaaa">Filter AAAA</a></li>
+                <li id="mainTabListGeoContinent" role="presentation" style="display:none;"><a href="#mainTabPaneGeoContinent" data-tab="geocontinent">Geo Continent</a></li>
+                <li id="mainTabListGeoCountry" role="presentation" style="display:none;"><a href="#mainTabPaneGeoCountry" data-tab="geocountry">Geo Country</a></li>
+                <li id="mainTabListGeoDistance" role="presentation" style="display:none;"><a href="#mainTabPaneGeoDistance" data-tab="geodistance">Geo Distance</a></li>
+                <li id="mainTabListFailover" role="presentation" style="display:none;"><a href="#mainTabPaneFailover" data-tab="failover">Failover</a></li>
+                <li id="mainTabListLogExporter" role="presentation" style="display:none;"><a href="#mainTabPaneLogExporter" data-tab="logexporter">Log Exporter</a></li>
+                <li id="mainTabListNoData" role="presentation" style="display:none;"><a href="#mainTabPaneNoData" data-tab="nodata">NO DATA</a></li>
+                <li id="mainTabListNxDomain" role="presentation" style="display:none;"><a href="#mainTabPaneNxDomain" data-tab="nxdomain">NX Domain</a></li>
+                <li id="mainTabListNxDomainOverride" role="presentation" style="display:none;"><a href="#mainTabPaneNxDomainOverride" data-tab="nxdomainoverride">NX Domain Override</a></li>
+                <li id="mainTabListQueryLogsMySql" role="presentation" style="display:none;"><a href="#mainTabPaneQueryLogsMySql" data-tab="querylogsmysql">Query Logs (MySQL)</a></li>
+                <li id="mainTabListQueryLogsPostgreSql" role="presentation" style="display:none;"><a href="#mainTabPaneQueryLogsPostgreSql" data-tab="querylogspostgresql">Query Logs (PostgreSQL)</a></li>
+                <li id="mainTabListQueryLogsSqlServer" role="presentation" style="display:none;"><a href="#mainTabPaneQueryLogsSqlServer" data-tab="querylogssqlserver">Query Logs (SQL Server)</a></li>
+                <li id="mainTabListQueryLogsSqlite" role="presentation" style="display:none;"><a href="#mainTabPaneQueryLogsSqlite" data-tab="querylogssqlite">Query Logs (Sqlite)</a></li>
+                <li id="mainTabListWeightedRoundRobin" role="presentation" style="display:none;"><a href="#mainTabPaneWeightedRoundRobin" data-tab="weightedroundrobin">Weighted Round Robin</a></li>
+                <li id="mainTabListWhatIsMyDns" role="presentation" style="display:none;"><a href="#mainTabPaneWhatIsMyDns" data-tab="whatismydns">What Is My Dns</a></li>
+                <li id="mainTabListWildIp" role="presentation" style="display:none;"><a href="#mainTabPaneWildIp" data-tab="wildip">Wild IP</a></li>
+                <li id="mainTabListZoneAlias" role="presentation" style="display:none;"><a href="#mainTabPaneZoneAlias" data-tab="zonealias">Zone Alias</a></li>
                 <li id="mainTabListAppStore" role="presentation"><a href="#mainTabPaneAppStore" data-tab="appstore">App Store</a></li>
             </ul>
 
@@ -687,6 +688,18 @@
                     <button class="btn btn-default" id="uiDialogCancelBtn" style="display:none;">Cancel</button>
                     <button class="btn btn-primary" id="uiDialogOkBtn">OK</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="updateOverlay" class="modal-overlay">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">Updating</h3>
+            </div>
+            <div class="panel-body text-center">
+                <p><span class="fa fa-spinner fa-spin"></span> <span id="updateOverlayStatus">Updating&hellip;</span></p>
+                <p class="text-muted" style="font-size:12px;">The page will reload automatically once the addon is back.</p>
             </div>
         </div>
     </div>
