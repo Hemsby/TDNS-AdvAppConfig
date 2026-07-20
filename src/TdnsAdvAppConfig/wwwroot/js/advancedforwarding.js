@@ -159,7 +159,7 @@
 
     function renderRoot() {
         root.innerHTML = `
-            <div class="panel panel-default">
+            <div class="panel panel-default action-bar-sticky">
                 <div class="panel-body">
                     <div class="group-row">
                         <div><span id="afConfigDirtyBadge" class="label label-warning" style="display:none;">Unsaved changes</span></div>
@@ -507,7 +507,7 @@
     }
 
     function renderNetworkMap() {
-        AppHelpers.renderGroupMapTable("afNetworkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "group");
+        AppHelpers.renderGroupMapTable("afNetworkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "group", true);
     }
 
     async function addNetworkMapping() {
@@ -523,7 +523,10 @@
             return;
         }
 
-        config.networkGroupMap[key] = groupNames()[0];
+        const group = await uiSelectPrompt(`Map "${key}" to which group?`, groupNames(), groupNames()[0]);
+        if (!group) return;
+
+        config.networkGroupMap[key] = group;
         markDirty();
         renderNetworkMap();
     }
@@ -594,13 +597,14 @@
 
         config.groups.push({ name, enableForwarding: true, forwardings: [] });
         markDirty();
-        renderGroupsList();
+        openGroupEditor(config.groups.length - 1);
     }
 
     function closeGroupEditor() {
         currentGroupIndex = -1;
         document.getElementById("afConfigListView").style.display = "";
         document.getElementById("afGroupEditorView").style.display = "none";
+        window.scrollTo({ top: 0 });
         renderGroupsList();
         renderNetworkMap();
     }
@@ -610,6 +614,7 @@
         document.getElementById("afConfigListView").style.display = "none";
         document.getElementById("afGroupEditorView").style.display = "";
         renderGroupEditor();
+        window.scrollTo({ top: 0 });
     }
 
     function renderGroupEditor() {

@@ -151,7 +151,7 @@
 
     function renderRoot() {
         root.innerHTML = `
-            <div class="panel panel-default">
+            <div class="panel panel-default action-bar-sticky">
                 <div class="panel-body">
                     <div class="group-row">
                         <div><span id="shConfigDirtyBadge" class="label label-warning" style="display:none;">Unsaved changes</span></div>
@@ -424,7 +424,7 @@
     }
 
     function renderNetworkMap() {
-        AppHelpers.renderGroupMapTable("shNetworkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "translation group");
+        AppHelpers.renderGroupMapTable("shNetworkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "translation group", true);
     }
 
     async function addDomainMapping() {
@@ -440,7 +440,10 @@
             return;
         }
 
-        config.domainGroupMap[key] = groupNames()[0];
+        const group = await uiSelectPrompt(`Map "${key}" to which translation group?`, groupNames(), groupNames()[0]);
+        if (!group) return;
+
+        config.domainGroupMap[key] = group;
         markDirty();
         renderDomainMap();
     }
@@ -458,7 +461,10 @@
             return;
         }
 
-        config.networkGroupMap[key] = groupNames()[0];
+        const group = await uiSelectPrompt(`Map "${key}" to which translation group?`, groupNames(), groupNames()[0]);
+        if (!group) return;
+
+        config.networkGroupMap[key] = group;
         markDirty();
         renderNetworkMap();
     }
@@ -616,9 +622,9 @@
         });
 
         markDirty();
-        renderGroupsList();
         renderDomainMap();
         renderNetworkMap();
+        openGroupEditor(config.groups.length - 1);
     }
 
     function openGroupEditor(index) {
@@ -626,12 +632,14 @@
         document.getElementById("shConfigListView").style.display = "none";
         document.getElementById("shConfigGroupEditorView").style.display = "block";
         renderGroupEditor();
+        window.scrollTo({ top: 0 });
     }
 
     function closeGroupEditor() {
         currentGroupIndex = -1;
         document.getElementById("shConfigGroupEditorView").style.display = "none";
         document.getElementById("shConfigListView").style.display = "block";
+        window.scrollTo({ top: 0 });
         renderGroupsList();
         renderDomainMap();
         renderNetworkMap();

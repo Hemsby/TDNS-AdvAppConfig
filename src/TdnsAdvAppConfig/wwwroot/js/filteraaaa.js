@@ -134,7 +134,7 @@
 
     function renderRoot() {
         root.innerHTML = `
-            <div class="panel panel-default">
+            <div class="panel panel-default action-bar-sticky">
                 <div class="panel-body">
                     <div class="group-row">
                         <div><span id="faaConfigDirtyBadge" class="label label-warning" style="display:none;">Unsaved changes</span></div>

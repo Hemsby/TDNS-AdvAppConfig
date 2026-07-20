@@ -4,6 +4,8 @@
     const root = document.getElementById("dashboardAppTogglesRoot");
 
     let items = [];
+    let installedCount = null;
+    let availableCount = null;
 
     function escapeHtml(str) {
         return String(str)
@@ -46,9 +48,61 @@
             items.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
             renderRoot();
+            loadAppStoreCounts();
         } catch (err) {
             root.innerHTML = `<p class="text-danger">Failed to load app toggles: ${escapeHtml(err.message)}</p>`;
         }
+    }
+
+    async function loadAppStoreCounts() {
+        installedCount = null;
+        availableCount = null;
+
+        try {
+            const [installedRes, availableRes] = await Promise.all([
+                apiFetch("/api/appstore/installed"),
+                apiFetch("/api/appstore/available")
+            ]);
+            const installedData = await installedRes.json();
+            const availableData = await availableRes.json();
+
+            if (installedData.success) installedCount = (installedData.apps || []).length;
+            if (availableData.success) availableCount = (availableData.apps || []).length;
+        } catch (err) {
+            // Non-critical stat - leave counts unset and just omit the summary line.
+        }
+
+        renderAppStoreSummary();
+    }
+
+    function renderAppStoreSummary() {
+        const container = document.getElementById("dashboardAppStoreSummary");
+        if (!container) return;
+
+        if (installedCount === null || availableCount === null) {
+            container.innerHTML = "";
+            return;
+        }
+
+        const total = installedCount + availableCount;
+
+        container.innerHTML = `<div class="text-muted text-right" style="margin-top:16px; font-size:13px;">
+            App Store Details:
+            <a href="#" id="dashboardAppStoreInstalledLink">Installed ${installedCount}</a>
+            &nbsp;&middot;&nbsp;
+            <a href="#" id="dashboardAppStoreAvailableLink">Available ${availableCount}</a>
+            &nbsp;&middot;&nbsp;
+            Total ${total}
+        </div>`;
+
+        document.getElementById("dashboardAppStoreInstalledLink").addEventListener("click", (e) => {
+            e.preventDefault();
+            window.appStoreShow("installed");
+        });
+        document.getElementById("dashboardAppStoreAvailableLink").addEventListener("click", (e) => {
+            e.preventDefault();
+            window.appStoreShow("available");
+        });
     }
 
     function renderRoot() {
@@ -58,6 +112,7 @@
                 <div class="panel-body">
                     <p class="text-muted">Installed apps with a single on/off master switch. Toggling here saves immediately - the same as flipping it on that app's own Config tab.</p>
                     <div id="dashboardAppTogglesContainer"></div>
+                    <div id="dashboardAppStoreSummary"></div>
                 </div>
             </div>
         `;

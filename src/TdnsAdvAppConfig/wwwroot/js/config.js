@@ -103,7 +103,7 @@
 
     function renderRoot() {
         root.innerHTML = `
-            <div class="panel panel-default">
+            <div class="panel panel-default action-bar-sticky">
                 <div class="panel-body">
                     <div class="group-row">
                         <div><span id="configDirtyBadge" class="label label-warning" style="display:none;">Unsaved changes</span></div>
@@ -207,7 +207,7 @@
     }
 
     function renderNetworkMap() {
-        AppHelpers.renderGroupMapTable("networkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "group");
+        AppHelpers.renderGroupMapTable("networkMapContainer", config.networkGroupMap, "Network / IP", "192.168.1.0/24", groupNames, markDirty, "group", true);
     }
 
     async function addEndpointMapping() {
@@ -223,7 +223,10 @@
             return;
         }
 
-        config.localEndPointGroupMap[key] = groupNames()[0];
+        const group = await uiSelectPrompt(`Map "${key}" to which group?`, groupNames(), groupNames()[0]);
+        if (!group) return;
+
+        config.localEndPointGroupMap[key] = group;
         markDirty();
         renderEndpointMap();
     }
@@ -241,7 +244,10 @@
             return;
         }
 
-        config.networkGroupMap[key] = groupNames()[0];
+        const group = await uiSelectPrompt(`Map "${key}" to which group?`, groupNames(), groupNames()[0]);
+        if (!group) return;
+
+        config.networkGroupMap[key] = group;
         markDirty();
         renderNetworkMap();
     }
@@ -317,9 +323,9 @@
         });
 
         markDirty();
-        renderGroupsList();
         renderEndpointMap();
         renderNetworkMap();
+        openGroupEditor(config.groups.length - 1);
     }
 
     function renderStringList(containerId, arrayRef, placeholder) {
@@ -439,12 +445,14 @@
         document.getElementById("configListView").style.display = "none";
         document.getElementById("configGroupEditorView").style.display = "block";
         renderGroupEditor();
+        window.scrollTo({ top: 0 });
     }
 
     function closeGroupEditor() {
         currentGroupIndex = -1;
         document.getElementById("configGroupEditorView").style.display = "none";
         document.getElementById("configListView").style.display = "block";
+        window.scrollTo({ top: 0 });
         renderGroupsList();
         renderEndpointMap();
         renderNetworkMap();

@@ -9,12 +9,99 @@ window.AppHelpers = (function () {
             .replace(/"/g, "&quot;");
     }
 
-    function renderGroupMapTable(containerId, mapObj, keyLabel, keyPlaceholder, groupNamesFn, markDirty, groupNoun) {
+    function parseNetworkKeyForSort(key) {
+        try {
+            const trimmed = String(key).trim();
+            const slashIdx = trimmed.indexOf("/");
+            const addr = slashIdx === -1 ? trimmed : trimmed.slice(0, slashIdx);
+            const prefixStr = slashIdx === -1 ? null : trimmed.slice(slashIdx + 1);
+
+            let family, value, defaultPrefix;
+
+            if (addr.indexOf(":") !== -1) {
+                family = 1;
+                defaultPrefix = 128;
+
+                const dblIdx = addr.indexOf("::");
+                let groups;
+
+                if (dblIdx !== -1) {
+                    if (addr.indexOf("::", dblIdx + 1) !== -1) throw new Error("multiple ::");
+                    const left = addr.slice(0, dblIdx);
+                    const right = addr.slice(dblIdx + 2);
+                    const leftGroups = left === "" ? [] : left.split(":");
+                    const rightGroups = right === "" ? [] : right.split(":");
+                    const missing = 8 - (leftGroups.length + rightGroups.length);
+                    if (missing < 0) throw new Error("too many groups");
+                    groups = leftGroups.concat(new Array(missing).fill("0")).concat(rightGroups);
+                } else {
+                    groups = addr.split(":");
+                    if (groups.length !== 8) throw new Error("wrong group count");
+                }
+
+                if (groups.length !== 8) throw new Error("wrong group count");
+
+                value = 0n;
+                for (const g of groups) {
+                    if (g.indexOf(".") !== -1) {
+                        // IPv4-mapped tail (e.g. ::ffff:192.168.1.1) - not expected here, treat as invalid
+                        throw new Error("embedded IPv4 not supported");
+                    }
+                    if (!/^[0-9a-fA-F]{1,4}$/.test(g)) throw new Error("bad hex group");
+                    value = value * 65536n + BigInt(parseInt(g, 16));
+                }
+            } else {
+                family = 0;
+                defaultPrefix = 32;
+
+                const parts = addr.split(".");
+                if (parts.length !== 4) throw new Error("wrong octet count");
+
+                value = 0n;
+                for (const p of parts) {
+                    if (!/^\d{1,3}$/.test(p)) throw new Error("bad octet");
+                    const n = parseInt(p, 10);
+                    if (n < 0 || n > 255) throw new Error("octet out of range");
+                    value = value * 256n + BigInt(n);
+                }
+            }
+
+            let prefixLen = defaultPrefix;
+            if (prefixStr !== null) {
+                if (!/^\d{1,3}$/.test(prefixStr)) throw new Error("bad prefix");
+                prefixLen = parseInt(prefixStr, 10);
+                if (prefixLen < 0 || prefixLen > defaultPrefix) throw new Error("prefix out of range");
+            }
+
+            const isCatchAll = value === 0n && prefixLen === 0;
+
+            return { ok: true, family, value, prefixLen, isCatchAll };
+        } catch (e) {
+            return { ok: false };
+        }
+    }
+
+    function compareNetworkKeys(a, b) {
+        const pa = parseNetworkKeyForSort(a);
+        const pb = parseNetworkKeyForSort(b);
+
+        const rank = (p) => (!p.ok ? 2 : (p.isCatchAll ? 1 : 0));
+        const ra = rank(pa), rb = rank(pb);
+        if (ra !== rb) return ra - rb;
+        if (ra === 2) return String(a).localeCompare(String(b));
+
+        if (pa.family !== pb.family) return pa.family - pb.family;
+        if (pa.value !== pb.value) return pa.value < pb.value ? -1 : 1;
+        return pa.prefixLen - pb.prefixLen;
+    }
+
+    function renderGroupMapTable(containerId, mapObj, keyLabel, keyPlaceholder, groupNamesFn, markDirty, groupNoun, sortAsNetwork) {
         groupNoun = groupNoun || "group";
 
         const container = document.getElementById(containerId);
         const keys = Object.keys(mapObj);
-        const rerender = () => renderGroupMapTable(containerId, mapObj, keyLabel, keyPlaceholder, groupNamesFn, markDirty, groupNoun);
+        if (sortAsNetwork) keys.sort(compareNetworkKeys);
+        const rerender = () => renderGroupMapTable(containerId, mapObj, keyLabel, keyPlaceholder, groupNamesFn, markDirty, groupNoun, sortAsNetwork);
 
         if (keys.length === 0) {
             container.innerHTML = '<p class="text-muted">No mappings configured.</p>';

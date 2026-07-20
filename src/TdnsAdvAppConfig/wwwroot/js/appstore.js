@@ -197,5 +197,10 @@
         });
     }
 
+    window.appStoreShow = function (subtab) {
+        currentSubTab = subtab === "available" ? "available" : "installed";
+        window.mainTabs.switchTab("appstore");
+    };
+
     initSubTabs();
 })();
