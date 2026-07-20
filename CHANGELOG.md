@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-20
+
+### Added
+
+- Discard/Save bar now stays visible at the top of the screen while scrolling on every app's Config tab, instead of scrolling out of view.
+- Network/IP group maps (Advanced Blocking, Advanced Forwarding, DNS64, Split Horizon) now list entries in IP order, with catch-all entries (`0.0.0.0/0`, `::/0`) always sorted last.
+- Dashboard now shows an Installed / Available / Total app count, linking straight to the App Store tab.
+
+### Fixed
+
+- Adding a group (Advanced Blocking, Advanced Forwarding, DNS64, Split Horizon) now takes you straight into that group's editor instead of leaving you on the list.
+- Adding a network, endpoint, or domain mapping now asks which group to map it to, instead of silently defaulting to the first one.
+- Opening a group's editor no longer leaves the page scrolled to wherever the list happened to be - it now starts at the top every time.
+
 ## [2.0.2] - 2026-07-19
 
 ### Fixed
