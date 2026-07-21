@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-07-21
+
+### Added
+
+- Advanced Blocking groups can now be cloned from the Config tab - prompts for a new name, then takes you straight into that group's editor.
+- Block List URLs in a group's editor now has a Quick Add picker pulling from Technitium's own curated block list catalog (Steven Black, OISD, Hagezi, newly-registered-domain feeds), with a badge showing whether it's using the server's built-in list or a custom override.
+
+### Changed
+
+- Deleting an Advanced Blocking group that still has endpoint or network mappings pointing to it now lets you choose to remove those mappings or reassign them to another group, instead of leaving them silently pointing at a deleted group.
+
 ## [2.1.0] - 2026-07-20
 
 ### Added
