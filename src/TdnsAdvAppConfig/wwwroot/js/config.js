@@ -269,6 +269,7 @@
                 <div><span class="group-name">${escapeHtml(g.name)}</span> ${badge}</div>
                 <div class="group-actions">
                     <button class="btn btn-default btn-xs group-edit" data-index="${idx}">Edit</button>
+                    <button class="btn btn-default btn-xs group-clone" data-index="${idx}">Clone</button>
                     <button class="btn btn-danger btn-xs group-delete" data-index="${idx}">Delete</button>
                 </div>
             </div>`;
@@ -278,12 +279,45 @@
             btn.addEventListener("click", () => openGroupEditor(parseInt(btn.getAttribute("data-index"), 10)));
         });
 
+        container.querySelectorAll(".group-clone").forEach((btn) => {
+            btn.addEventListener("click", () => cloneGroup(parseInt(btn.getAttribute("data-index"), 10)));
+        });
+
         container.querySelectorAll(".group-delete").forEach((btn) => {
             btn.addEventListener("click", async () => {
                 const idx = parseInt(btn.getAttribute("data-index"), 10);
                 const g = config.groups[idx];
 
-                if (!(await uiConfirm(`Delete group "${g.name}"? Any endpoint/network mappings pointing to it will be left dangling.`))) return;
+                const endpointKeys = Object.keys(config.localEndPointGroupMap).filter((k) => config.localEndPointGroupMap[k] === g.name);
+                const networkKeys = Object.keys(config.networkGroupMap).filter((k) => config.networkGroupMap[k] === g.name);
+                const affected = endpointKeys.length + networkKeys.length;
+
+                if (affected > 0) {
+                    const DELETE_VALUE = "__delete_mappings__";
+                    const otherGroupNames = config.groups.filter((gr) => gr !== g).map((gr) => gr.name);
+                    const options = [
+                        { value: DELETE_VALUE, label: "Delete these mappings" },
+                        ...otherGroupNames.map((name) => ({ value: name, label: `Reassign them to "${name}"` }))
+                    ];
+
+                    const choice = await uiSelectPrompt(
+                        `You're about to delete group "${g.name}". ${affected} mapping${affected === 1 ? "" : "s"} still point${affected === 1 ? "s" : ""} to it (${[...endpointKeys, ...networkKeys].join(", ")}). Choose what to do with ${affected === 1 ? "that mapping" : "those mappings"} below, then confirm.`,
+                        options,
+                        DELETE_VALUE,
+                        `What should happen to mappings pointing to "${g.name}"?`
+                    );
+                    if (!choice) return;
+
+                    if (choice === DELETE_VALUE) {
+                        endpointKeys.forEach((k) => delete config.localEndPointGroupMap[k]);
+                        networkKeys.forEach((k) => delete config.networkGroupMap[k]);
+                    } else {
+                        endpointKeys.forEach((k) => { config.localEndPointGroupMap[k] = choice; });
+                        networkKeys.forEach((k) => { config.networkGroupMap[k] = choice; });
+                    }
+                } else {
+                    if (!(await uiConfirm(`Delete group "${g.name}"?`))) return;
+                }
 
                 config.groups.splice(idx, 1);
                 markDirty();
@@ -321,6 +355,29 @@
             regexBlockListUrls: [],
             adblockListUrls: []
         });
+
+        markDirty();
+        renderEndpointMap();
+        renderNetworkMap();
+        openGroupEditor(config.groups.length - 1);
+    }
+
+    async function cloneGroup(idx) {
+        const source = config.groups[idx];
+
+        let name = await uiPrompt("New group name:", `${source.name} (Copy)`);
+        if (!name) return;
+        name = name.trim();
+        if (!name) return;
+
+        if (config.groups.some((g) => g.name === name)) {
+            await uiAlert("A group with that name already exists.");
+            return;
+        }
+
+        const clone = JSON.parse(JSON.stringify(source));
+        clone.name = name;
+        config.groups.push(clone);
 
         markDirty();
         renderEndpointMap();

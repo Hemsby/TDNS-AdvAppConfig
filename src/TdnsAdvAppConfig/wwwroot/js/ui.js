@@ -23,7 +23,9 @@
             if (showSelect) {
                 selectEl.innerHTML = "";
                 (selectOptions || []).forEach((opt) => {
-                    selectEl.appendChild(new Option(opt, opt, false, opt === selectValue));
+                    const value = typeof opt === "object" ? opt.value : opt;
+                    const label = typeof opt === "object" ? opt.label : opt;
+                    selectEl.appendChild(new Option(label, value, false, value === selectValue));
                 });
             }
 
