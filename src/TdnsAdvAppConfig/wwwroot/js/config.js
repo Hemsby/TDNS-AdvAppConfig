@@ -7,6 +7,24 @@
     let loaded = false;
     let dirty = false;
     let currentGroupIndex = -1;
+    let quickBlockListPresets = null;
+    let quickBlockListSource = null;
+
+    async function ensureQuickBlockListPresets() {
+        if (quickBlockListPresets !== null) return quickBlockListPresets;
+
+        try {
+            const res = await apiFetch("/api/advancedblocking/quickblocklists");
+            const data = await res.json();
+            quickBlockListPresets = (data.success && Array.isArray(data.lists)) ? data.lists : [];
+            quickBlockListSource = data.success ? (data.source || null) : null;
+        } catch (err) {
+            quickBlockListPresets = [];
+            quickBlockListSource = null;
+        }
+
+        return quickBlockListPresets;
+    }
 
     function escapeHtml(str) {
         return String(str)
@@ -422,10 +440,28 @@
         });
     }
 
-    function renderUrlEntryList(containerId, arrayRef) {
+    function renderUrlEntryList(containerId, arrayRef, quickAddPresets, quickAddSource) {
         const container = document.getElementById(containerId);
 
-        container.innerHTML = arrayRef.map((entry, i) => {
+        const sourceBadge = quickAddSource === "custom"
+            ? '<span class="label label-info" style="margin-left:8px;" title="Loaded from this server\'s quick-block-lists-custom.json">Custom</span>'
+            : quickAddSource === "builtin"
+                ? '<span class="label label-default" style="margin-left:8px;" title="Loaded from this server\'s quick-block-lists-builtin.json">Builtin</span>'
+                : "";
+
+        const quickAddHtml = (quickAddPresets && quickAddPresets.length > 0)
+            ? `<div class="group-row" style="margin-bottom:10px;">
+                <div style="display:flex; align-items:center;">
+                    <select class="form-control input-sm quick-add-select" style="max-width:340px; margin-right:8px;">
+                        ${quickAddPresets.map((p, i) => `<option value="${i}">${escapeHtml(p.name)}</option>`).join("")}
+                    </select>
+                    ${sourceBadge}
+                </div>
+                <button class="btn btn-default btn-sm quick-add-btn"><span class="fa fa-bolt"></span> Quick Add</button>
+            </div>`
+            : "";
+
+        container.innerHTML = quickAddHtml + arrayRef.map((entry, i) => {
             const isObj = typeof entry === "object" && entry !== null;
             const url = isObj ? (entry.url || "") : (entry || "");
             const blockAsNxDomain = isObj ? !!entry.blockAsNxDomain : false;
@@ -456,6 +492,25 @@
             return { url, blockAsNxDomain: false, blockingAddresses: [] };
         }
 
+        if (quickAddPresets && quickAddPresets.length > 0) {
+            const select = container.querySelector(".quick-add-select");
+            container.querySelector(".quick-add-btn").addEventListener("click", () => {
+                const preset = quickAddPresets[parseInt(select.value, 10)];
+                if (!preset || !Array.isArray(preset.urls)) return;
+
+                const existingUrls = new Set(arrayRef.map((e) => (typeof e === "object" && e !== null ? e.url : e)));
+                preset.urls.forEach((url) => {
+                    if (!existingUrls.has(url)) {
+                        arrayRef.push(url);
+                        existingUrls.add(url);
+                    }
+                });
+
+                markDirty();
+                renderUrlEntryList(containerId, arrayRef, quickAddPresets, quickAddSource);
+            });
+        }
+
         container.querySelectorAll(".url-entry-url").forEach((inp) => {
             inp.addEventListener("input", () => {
                 const i = parseInt(inp.getAttribute("data-index"), 10);
@@ -470,7 +525,7 @@
                 const i = parseInt(chk.getAttribute("data-index"), 10);
                 arrayRef[i] = chk.checked ? toObjectEntry(arrayRef[i]) : (typeof arrayRef[i] === "object" ? (arrayRef[i].url || "") : arrayRef[i]);
                 markDirty();
-                renderUrlEntryList(containerId, arrayRef);
+                renderUrlEntryList(containerId, arrayRef, quickAddPresets, quickAddSource);
             });
         });
 
@@ -486,21 +541,23 @@
             btn.addEventListener("click", () => {
                 arrayRef.splice(parseInt(btn.getAttribute("data-index"), 10), 1);
                 markDirty();
-                renderUrlEntryList(containerId, arrayRef);
+                renderUrlEntryList(containerId, arrayRef, quickAddPresets, quickAddSource);
             });
         });
 
         container.querySelector(".url-entry-add").addEventListener("click", () => {
             arrayRef.push("");
             markDirty();
-            renderUrlEntryList(containerId, arrayRef);
+            renderUrlEntryList(containerId, arrayRef, quickAddPresets, quickAddSource);
         });
     }
 
-    function openGroupEditor(index) {
+    async function openGroupEditor(index) {
         currentGroupIndex = index;
         document.getElementById("configListView").style.display = "none";
         document.getElementById("configGroupEditorView").style.display = "block";
+        await ensureQuickBlockListPresets();
+        if (currentGroupIndex !== index) return;
         renderGroupEditor();
         window.scrollTo({ top: 0 });
     }
@@ -614,7 +671,7 @@
         renderStringList("grpAllowed", g.allowed, "domain.example.com");
         renderStringList("grpBlocked", g.blocked, "domain.example.com");
         renderStringList("grpAllowListUrls", g.allowListUrls, "https://example.com/allow.txt");
-        renderUrlEntryList("grpBlockListUrls", g.blockListUrls);
+        renderUrlEntryList("grpBlockListUrls", g.blockListUrls, quickBlockListPresets || [], quickBlockListSource);
         renderStringList("grpAllowedRegex", g.allowedRegex, "regex pattern");
         renderStringList("grpBlockedRegex", g.blockedRegex, "regex pattern");
         renderStringList("grpRegexAllowListUrls", g.regexAllowListUrls, "https://example.com/regex-allow.txt");

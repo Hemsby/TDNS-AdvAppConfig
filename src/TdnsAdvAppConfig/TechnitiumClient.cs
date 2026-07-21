@@ -131,6 +131,24 @@ public sealed class TechnitiumClient
         EnsureOk(result);
     }
 
+    public async Task<(JsonNode? Lists, string Source)> GetQuickBlockListsAsync(CancellationToken ct = default)
+    {
+        JsonNode? custom = await TryGetStaticJsonAsync("/json/quick-block-lists-custom.json", ct);
+        if (custom is not null)
+            return (custom, "custom");
+
+        return (await TryGetStaticJsonAsync("/json/quick-block-lists-builtin.json", ct), "builtin");
+    }
+
+    private async Task<JsonNode?> TryGetStaticJsonAsync(string relativeUrl, CancellationToken ct)
+    {
+        using HttpResponseMessage response = await _http.GetAsync($"{_baseUrl}{relativeUrl}", ct);
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct), documentOptions: CommentTolerantJsonOptions);
+    }
+
     public async Task<JsonNode> GetSplitHorizonConfigAsync(CancellationToken ct = default)
     {
         JsonNode root = await GetJsonAsync($"/api/apps/config/get?name={Uri.EscapeDataString(SplitHorizonAppName)}", ct);

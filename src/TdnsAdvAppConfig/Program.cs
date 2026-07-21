@@ -227,6 +227,19 @@ app.MapPost("/api/config/raw", async (JsonElement body, TechnitiumClient client)
     }
 });
 
+app.MapGet("/api/advancedblocking/quickblocklists", async (TechnitiumClient client) =>
+{
+    try
+    {
+        (JsonNode? lists, string source) = await client.GetQuickBlockListsAsync();
+        return Results.Ok(new { success = true, lists, source, error = (string?)null });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new { success = false, lists = (JsonNode?)null, source = (string?)null, error = ex.Message });
+    }
+});
+
 app.MapGet("/api/splithorizon/config/raw", async (TechnitiumClient client) =>
 {
     try
